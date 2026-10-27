@@ -1,0 +1,51 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/bricolage-grotesque";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Inter Variable", ui-sans-serif, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-paper: #f6f2ea;
+  --color-paper-2: #efe9dd;
+  --color-ink: #1b1f1a;
+  --color-ink-2: #4a5148;
+  --color-ink-3: #7c8379;
+  --color-line: #e2dbcc;
+  --color-brand: #1f4d3a;
+  --color-brand-2: #2d6b51;
+  --color-brand-soft: #dfeae2;
+  --color-clay: #d9643a;
+  --color-clay-soft: #f8e1d6;
+  --color-danger: #b42318;
+  --color-ok: #2f7d4a;
+}
+
+html { -webkit-tap-highlight-color: transparent; }
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+.font-display { font-family: var(--font-display); letter-spacing: -0.02em; }
+
+/* Componentes base (en capa components para que las utilidades puedan sobreescribirlos) */
+@layer components {
+.field {
+  @apply w-full rounded-xl border border-line bg-white px-3.5 py-2.5 text-[15px] text-ink outline-none transition placeholder:text-ink-3 focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:bg-paper-2;
+}
+.label { @apply mb-1.5 block text-sm font-medium text-ink-2; }
+
+.card { @apply rounded-2xl border border-line bg-white; }
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.animate-rise { animation: rise .35s cubic-bezier(.2,.7,.2,1) both; }
+
+@keyframes toast-in { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+.animate-toast { animation: toast-in .25s ease-out both; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
