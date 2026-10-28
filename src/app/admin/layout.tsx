@@ -1,20 +1,15 @@
 "use client";
 
-import { BarChart3, Users, Boxes, QrCode } from "lucide-react";
 import { RequireRole } from "@/components/session";
-import { DashboardShell, type NavItem } from "@/components/panel/shell";
-
-const nav: NavItem[] = [
-  { href: "/admin", label: "Resumen", icon: BarChart3 },
-  { href: "/admin/clientes", label: "Clientes", icon: Users },
-  { href: "/admin/lotes", label: "Lotes", icon: Boxes },
-  { href: "/admin/codigos", label: "Códigos", icon: QrCode },
-];
+import { TopBar } from "@/components/panel/top-bar";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <RequireRole role="admin">
-      <DashboardShell nav={nav} badge="Admin">{children}</DashboardShell>
+      <div className="min-h-dvh">
+        <TopBar badge="Admin" />
+        {children}
+      </div>
     </RequireRole>
   );
 }

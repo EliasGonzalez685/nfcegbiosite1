@@ -1,5 +1,5 @@
 import type { LinkType } from "@/lib/types";
-import { Globe, Mail, Phone, MapPin, Star, Link2 } from "lucide-react";
+import { Globe, Mail, Phone, MapPin, Star, Link2, UtensilsCrossed, Wifi, UserPlus } from "lucide-react";
 
 type P = { className?: string };
 
@@ -61,18 +61,9 @@ export function LinkIcon({ type, className = "size-5" }: { type: LinkType; class
     case "website": return <Globe className={className} />;
     case "email": return <Mail className={className} />;
     case "phone": return <Phone className={className} />;
+    case "menu": return <UtensilsCrossed className={className} />;
+    case "wifi": return <Wifi className={className} />;
+    case "vcard": return <UserPlus className={className} />;
     default: return <Link2 className={className} />;
   }
 }
-
-export const BRAND_COLORS: Partial<Record<LinkType, string>> = {
-  instagram: "#E1306C",
-  facebook: "#1877F2",
-  tiktok: "#111111",
-  whatsapp: "#25D366",
-  youtube: "#FF0000",
-  x: "#111111",
-  linkedin: "#0A66C2",
-  maps: "#EA4335",
-  google_review: "#FBBC05",
-};

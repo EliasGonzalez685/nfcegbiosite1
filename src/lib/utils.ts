@@ -4,17 +4,6 @@ export function cn(...classes: (string | false | null | undefined)[]) {
 
 const gsFormatter = new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 });
 
-/** 25000 -> "Gs. 25.000" */
-export function formatGs(value: number) {
-  return `Gs. ${gsFormatter.format(Math.round(value || 0))}`;
-}
-
-/** "25.000" -> 25000 */
-export function parseGs(input: string) {
-  const digits = input.replace(/\D/g, "");
-  return digits ? parseInt(digits, 10) : 0;
-}
-
 export function formatNumber(n: number) {
   return gsFormatter.format(n);
 }
@@ -59,10 +48,6 @@ export function getBaseUrl() {
   if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, "");
   if (typeof window !== "undefined") return window.location.origin;
   return "http://localhost:3000";
-}
-
-export function codeUrl(code: string) {
-  return `${getBaseUrl()}/t/${code}`;
 }
 
 export function profileUrl(slug: string) {

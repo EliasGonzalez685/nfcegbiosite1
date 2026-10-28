@@ -25,7 +25,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
           <p className="font-display text-4xl font-bold leading-[1.05]">Tu negocio,<br />a un toque del celular.</p>
-          <p className="mt-4 max-w-md text-white/75">Redes, WhatsApp, WiFi y tu menú con precios en guaraníes — todo desde una tarjeta NFC o un QR en la mesa.</p>
+          <p className="mt-4 max-w-md text-white/75">Tu logo y tus botones a WhatsApp, Instagram, ubicación y WiFi — todo desde una tarjeta NFC o un QR.</p>
         </div>
       </aside>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { db } from "@/lib/data";
 import { useAsync } from "@/lib/hooks";
@@ -10,32 +10,18 @@ import { PageLoader } from "@/components/ui";
 
 export default function BiositePage() {
   const { slug } = useParams<{ slug: string }>();
-  const { data, loading } = useAsync(async () => {
-    const profile = await db.profiles.getBySlug(slug);
-    if (!profile) return null;
-    const menu = profile.sections.menu ? await db.menu.list(profile.id) : { items: [] };
-    return { profile, hasMenu: menu.items.length > 0 };
-  }, [slug]);
-  const tracked = useRef(false);
+  const { data: profile, loading } = useAsync(() => db.profiles.getBySlug(slug), [slug]);
 
   useEffect(() => {
-    if (!data?.profile || tracked.current) return;
-    tracked.current = true;
-    document.title = data.profile.name;
-    // Las vistas que vienen de /t/CODIGO ya registraron el escaneo; igual contamos la vista.
-    db.analytics.track({ type: "view", profileId: data.profile.id });
-  }, [data]);
+    if (profile) document.title = profile.name;
+  }, [profile]);
 
-  if (loading) return <PageLoader />;
-  if (!data || !data.profile.published) return <NotFoundCard />;
+  if (loading) return <div className="min-h-dvh bg-[#0c0c0d]"><PageLoader /></div>;
+  if (!profile || !profile.published) return <NotFoundCard />;
 
   return (
-    <main className="min-h-dvh">
-      <BiositeView
-        profile={data.profile}
-        hasMenu={data.hasMenu}
-        onLinkClick={(linkId) => db.analytics.track({ type: "click", profileId: data.profile.id, linkId })}
-      />
+    <main className="flex min-h-dvh flex-col bg-[#0c0c0d]">
+      <BiositeView profile={profile} />
     </main>
   );
 }

@@ -31,13 +31,7 @@ export function persist() {
   try {
     window.localStorage.setItem(KEY, JSON.stringify(memory));
   } catch {
-    // Cuota llena (fotos muy pesadas): recortamos eventos antiguos y reintentamos
-    try {
-      memory.events = memory.events.slice(-3000);
-      window.localStorage.setItem(KEY, JSON.stringify(memory));
-    } catch {
-      console.warn("[mock] No se pudo guardar en localStorage");
-    }
+    console.warn("[mock] No se pudo guardar en localStorage (¿imágenes muy pesadas?)");
   }
   listeners.forEach((l) => l());
 }

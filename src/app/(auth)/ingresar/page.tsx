@@ -52,8 +52,8 @@ function LoginForm() {
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-3">Cuentas de prueba</p>
         <div className="mt-2 grid gap-1.5">
           {[
-            ["Cliente con menú", "cafe@demo.com", "demo123"],
-            ["Cliente sin menú", "dra@demo.com", "demo123"],
+            ["Barbería (dorado)", "barber@demo.com", "demo123"],
+            ["Cafetería", "cafe@demo.com", "demo123"],
             ["Administrador", "admin@nfcegbiosite.com", "admin123"],
           ].map(([label, e, p]) => (
             <button key={e} type="button" onClick={() => { setEmail(e); setPassword(p); }} className="flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-paper-2">

@@ -1,14 +1,12 @@
 import Link from "next/link";
-import { ArrowRight, Nfc, QrCode, UtensilsCrossed, Wifi, BarChart3, RefreshCcw } from "lucide-react";
+import { ArrowRight, Nfc, Palette, QrCode, Wifi } from "lucide-react";
 import { LogoMark } from "@/components/ui";
 
 const features = [
-  { icon: Nfc, title: "NFC y QR", text: "Un código corto permanente por tarjeta o placa. Si cambiás de negocio o perfil, se reasigna." },
-  { icon: UtensilsCrossed, title: "Menú con pedidos", text: "Fotos, precios en guaraníes, etiquetas y pedido directo por WhatsApp." },
-  { icon: Wifi, title: "WiFi para clientes", text: "Botón para copiar la contraseña y QR de WiFi para imprimir en la mesa." },
-  { icon: BarChart3, title: "Estadísticas", text: "Cuántas veces escanean tus tarjetas y en qué enlaces tocan." },
-  { icon: QrCode, title: "QR con tu logo", text: "Descargalos en PNG, SVG o PDF listos para imprenta." },
-  { icon: RefreshCcw, title: "Editás vos", text: "Cambiás horarios, precios o enlaces al instante, sin reimprimir nada." },
+  { icon: Nfc, title: "Tarjeta NFC o QR", text: "La acercan al celular o la escanean y se abre tu página. Sin instalar nada." },
+  { icon: Palette, title: "Con tu marca", text: "Tu logo, tu nombre y tu color. Botones a WhatsApp, Instagram, ubicación y más." },
+  { icon: Wifi, title: "WiFi y contacto", text: "Botón para copiar la contraseña del WiFi y otro para guardar tu contacto." },
+  { icon: QrCode, title: "Lo editás vos", text: "Cambiás un enlace y se actualiza al instante. No hace falta reimprimir nada." },
 ];
 
 export default function Home() {
@@ -22,52 +20,42 @@ export default function Home() {
         </nav>
       </header>
 
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-10 lg:grid-cols-[1.1fr_.9fr] lg:pt-20">
+      <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-8 lg:grid-cols-[1.1fr_.9fr] lg:pt-16">
         <div className="animate-rise">
           <span className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink-2">
             <span className="size-1.5 rounded-full bg-clay" /> Hecho en Paraguay 🇵🇾
           </span>
           <h1 className="mt-5 font-display text-5xl font-bold leading-[1.02] sm:text-6xl">
-            Tu negocio, a <span className="relative whitespace-nowrap text-brand">un toque<svg className="absolute -bottom-2 left-0 w-full text-clay" viewBox="0 0 200 12" preserveAspectRatio="none"><path d="M2 8c50-6 130-6 196-2" stroke="currentColor" strokeWidth="4" fill="none" strokeLinecap="round" /></svg></span> del celular.
+            Todos tus enlaces, en <span className="text-clay">un toque.</span>
           </h1>
           <p className="mt-6 max-w-xl text-lg text-ink-2">
-            Tarjetas NFC y placas QR que abren tu biosite: redes, WhatsApp, WiFi y tu menú con precios en guaraníes. Lo editás vos, cuando quieras.
+            Una página elegante con tu logo y tus botones — WhatsApp, Instagram, ubicación, WiFi — que se abre desde una tarjeta NFC o un QR.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/registro" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-5 font-medium text-white hover:bg-brand-2">
-              Empezar gratis <ArrowRight className="size-4" />
+              Crear mi página <ArrowRight className="size-4" />
             </Link>
-            <Link href="/la-cabana-cafe" className="inline-flex h-12 items-center rounded-xl border border-line bg-white px-5 font-medium hover:border-ink-3">
+            <Link href="/barberia-el-patron" className="inline-flex h-12 items-center rounded-xl border border-line bg-white px-5 font-medium hover:border-ink-3">
               Ver un ejemplo
             </Link>
           </div>
-          <div className="mt-10 rounded-2xl border border-dashed border-line bg-white/50 p-4 text-sm">
-            <p className="font-semibold">Probá la demo (datos de prueba)</p>
-            <ul className="mt-2 grid gap-1 text-ink-2 sm:grid-cols-2">
-              <li>→ <Link className="underline" href="/la-cabana-cafe">Biosite de cafetería</Link></li>
-              <li>→ <Link className="underline" href="/la-cabana-cafe/menu">Menú con pedido por WhatsApp</Link></li>
-              <li>→ <Link className="underline" href="/t/DEMO24">Activar una tarjeta nueva (DEMO24)</Link></li>
-              <li>→ <Link className="underline" href="/t/K7M2QX">Escanear una tarjeta activa</Link></li>
-            </ul>
-          </div>
+          <p className="mt-6 text-sm text-ink-3">
+            Más ejemplos: <Link className="underline" href="/la-cabana-cafe">cafetería</Link> · <Link className="underline" href="/dra-silvia-benitez">odontóloga</Link>
+          </p>
         </div>
 
         <div className="relative mx-auto w-full max-w-sm">
-          <div className="absolute -inset-10 -z-10 rounded-full bg-clay/15 blur-3xl" />
-          <div className="relative mx-auto h-[560px] w-[280px] rounded-[44px] border-[10px] border-ink bg-ink shadow-2xl">
-            <iframe src="/la-cabana-cafe" title="Ejemplo de biosite" className="size-full rounded-[34px] bg-white" />
-          </div>
-          <div className="absolute -left-10 bottom-16 aspect-[1.6/1] w-44 rotate-[-10deg] rounded-2xl bg-gradient-to-br from-brand to-[#0f2a1f] p-3 shadow-2xl max-sm:hidden">
-            <Nfc className="size-6 text-white/80" />
-            <p className="absolute bottom-3 left-3 font-mono text-xs tracking-[.3em] text-white/90">K7M2QX</p>
+          <div className="absolute -inset-10 -z-10 rounded-full bg-[#D4AF37]/20 blur-3xl" />
+          <div className="relative mx-auto h-[580px] w-[290px] rounded-[44px] border-[9px] border-[#1b1b1c] bg-[#1b1b1c] shadow-2xl">
+            <iframe src="/barberia-el-patron" title="Ejemplo" className="size-full rounded-[35px] bg-[#0c0c0d]" />
           </div>
         </div>
       </section>
 
       <section className="border-t border-line bg-white">
-        <div className="mx-auto grid max-w-6xl gap-px overflow-hidden px-5 py-16 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl gap-2 px-5 py-14 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((f) => (
-            <div key={f.title} className="p-6">
+            <div key={f.title} className="p-5">
               <f.icon className="size-6 text-clay" />
               <h3 className="mt-3 font-display text-lg font-semibold">{f.title}</h3>
               <p className="mt-1 text-ink-3">{f.text}</p>

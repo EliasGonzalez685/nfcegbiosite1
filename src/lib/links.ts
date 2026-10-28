@@ -1,30 +1,30 @@
-import type { ContactInfo, LinkType, ProfileLink, WifiNetwork } from "@/lib/types";
+import type { LinkType, Profile, ProfileLink } from "@/lib/types";
 
-export const LINK_TYPES: { type: LinkType; label: string; placeholder: string; hint?: string }[] = [
-  { type: "whatsapp", label: "WhatsApp", placeholder: "595981123456", hint: "Número con código de país, sin + ni espacios" },
-  { type: "instagram", label: "Instagram", placeholder: "https://instagram.com/tunegocio" },
-  { type: "facebook", label: "Facebook", placeholder: "https://facebook.com/tunegocio" },
-  { type: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@tunegocio" },
-  { type: "maps", label: "Google Maps", placeholder: "https://maps.app.goo.gl/…" },
-  { type: "google_review", label: "Reseñas de Google", placeholder: "https://g.page/r/…/review" },
-  { type: "website", label: "Sitio web", placeholder: "https://tunegocio.com.py" },
-  { type: "email", label: "Email", placeholder: "hola@tunegocio.com.py" },
-  { type: "phone", label: "Llamar", placeholder: "+595 981 123 456" },
-  { type: "youtube", label: "YouTube", placeholder: "https://youtube.com/@tunegocio" },
-  { type: "x", label: "X (Twitter)", placeholder: "https://x.com/tunegocio" },
-  { type: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/in/…" },
-  { type: "custom", label: "Enlace personalizado", placeholder: "https://…" },
+export const LINK_TYPES: { type: LinkType; label: string; placeholder: string; field: string; hint?: string }[] = [
+  { type: "whatsapp", label: "WhatsApp", placeholder: "595981123456", field: "Número", hint: "Con código de país, sin + ni espacios" },
+  { type: "instagram", label: "Instagram", placeholder: "https://instagram.com/tunegocio", field: "Enlace" },
+  { type: "facebook", label: "Facebook", placeholder: "https://facebook.com/tunegocio", field: "Enlace" },
+  { type: "tiktok", label: "TikTok", placeholder: "https://tiktok.com/@tunegocio", field: "Enlace" },
+  { type: "maps", label: "Ubicación", placeholder: "https://maps.app.goo.gl/…", field: "Enlace de Google Maps" },
+  { type: "google_review", label: "Reseñas de Google", placeholder: "https://g.page/r/…/review", field: "Enlace" },
+  { type: "wifi", label: "WiFi", placeholder: "MiNegocio_Clientes", field: "Nombre de la red" },
+  { type: "vcard", label: "Guardar contacto", placeholder: "", field: "" },
+  { type: "menu", label: "Menú / Catálogo", placeholder: "https://… (PDF, Drive, web)", field: "Enlace" },
+  { type: "website", label: "Sitio web", placeholder: "https://tunegocio.com.py", field: "Enlace" },
+  { type: "phone", label: "Llamar", placeholder: "+595 981 123 456", field: "Teléfono" },
+  { type: "email", label: "Email", placeholder: "hola@tunegocio.com.py", field: "Email" },
+  { type: "youtube", label: "YouTube", placeholder: "https://youtube.com/@tunegocio", field: "Enlace" },
+  { type: "x", label: "X (Twitter)", placeholder: "https://x.com/tunegocio", field: "Enlace" },
+  { type: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/in/…", field: "Enlace" },
+  { type: "custom", label: "Otro enlace", placeholder: "https://…", field: "Enlace" },
 ];
 
-export const linkTypeLabel = (t: LinkType) => LINK_TYPES.find((x) => x.type === t)?.label ?? t;
+export const linkMeta = (t: LinkType) => LINK_TYPES.find((x) => x.type === t) ?? LINK_TYPES[LINK_TYPES.length - 1];
 
-export function normalizePhone(v: string) {
-  return v.replace(/[^\d]/g, "");
-}
+export const normalizePhone = (v: string) => v.replace(/[^\d]/g, "");
 
 export function whatsappHref(number: string, message?: string) {
-  const n = normalizePhone(number);
-  return `https://wa.me/${n}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
+  return `https://wa.me/${normalizePhone(number)}${message ? `?text=${encodeURIComponent(message)}` : ""}`;
 }
 
 function ensureUrl(v: string) {
@@ -32,6 +32,12 @@ function ensureUrl(v: string) {
   if (!t) return "#";
   return /^https?:\/\//i.test(t) ? t : `https://${t}`;
 }
+
+/** Botones que no abren un enlace sino una acción dentro de la página */
+export const isAction = (t: LinkType) => t === "wifi" || t === "vcard";
+
+/** Un botón se muestra si está activo y tiene lo necesario */
+export const isComplete = (l: ProfileLink) => l.enabled && (l.type === "vcard" || l.value.trim() !== "");
 
 export function linkHref(link: ProfileLink) {
   switch (link.type) {
@@ -47,40 +53,25 @@ export function linkHref(link: ProfileLink) {
 }
 
 /** Cadena estándar de QR WiFi (Android/iOS la reconocen con la cámara) */
-export function wifiQrString(w: Pick<WifiNetwork, "ssid" | "password" | "security" | "hidden">) {
-  const esc = (s: string) => s.replace(/([\\;,:"])/g, "\\$1");
-  const t = w.security === "nopass" ? "nopass" : w.security;
-  return `WIFI:T:${t};S:${esc(w.ssid)};${w.security !== "nopass" ? `P:${esc(w.password)};` : ""}${w.hidden ? "H:true;" : ""};`;
+export function wifiQrString(ssid: string, password = "") {
+  const esc = (s: string) => s.replace(/([\;,:"])/g, "\\$1");
+  return password ? `WIFI:T:WPA;S:${esc(ssid)};P:${esc(password)};;` : `WIFI:T:nopass;S:${esc(ssid)};;`;
 }
 
-export function buildVCard(c: ContactInfo, extra?: { url?: string; note?: string }) {
+/** vCard armada con los datos de los botones del perfil (WhatsApp, teléfono, email, web, ubicación) */
+export function buildVCard(p: Profile, pageUrl: string) {
   const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/([,;])/g, "\\$1");
-  const lines = ["BEGIN:VCARD", "VERSION:3.0"];
-  const name = c.fullName || c.company;
-  const parts = name.trim().split(/\s+/);
-  const last = parts.length > 1 ? parts.slice(-1).join(" ") : "";
-  const first = parts.length > 1 ? parts.slice(0, -1).join(" ") : name;
-  lines.push(`N:${esc(last)};${esc(first)};;;`, `FN:${esc(name)}`);
-  if (c.company) lines.push(`ORG:${esc(c.company)}`);
-  if (c.jobTitle) lines.push(`TITLE:${esc(c.jobTitle)}`);
-  if (c.phone) lines.push(`TEL;TYPE=WORK,VOICE:${c.phone}`);
-  if (c.whatsapp) lines.push(`TEL;TYPE=CELL:+${normalizePhone(c.whatsapp)}`);
-  if (c.email) lines.push(`EMAIL;TYPE=INTERNET:${c.email}`);
-  if (c.website) lines.push(`URL:${c.website}`);
-  else if (extra?.url) lines.push(`URL:${extra.url}`);
-  if (c.address) lines.push(`ADR;TYPE=WORK:;;${esc(c.address)};;;;Paraguay`);
-  if (extra?.note) lines.push(`NOTE:${esc(extra.note)}`);
+  const on = p.links.filter((l) => l.enabled && l.value.trim());
+  const lines = ["BEGIN:VCARD", "VERSION:3.0", `N:;${esc(p.name)};;;`, `FN:${esc(p.name)}`, `ORG:${esc(p.name)}`];
+  if (p.tagline) lines.push(`NOTE:${esc(p.tagline)}`);
+  for (const l of on) {
+    if (l.type === "whatsapp") lines.push(`TEL;TYPE=CELL:+${normalizePhone(l.value)}`);
+    if (l.type === "phone") lines.push(`TEL;TYPE=WORK,VOICE:${l.value.trim()}`);
+    if (l.type === "email") lines.push(`EMAIL;TYPE=INTERNET:${l.value.trim()}`);
+    if (l.type === "website") lines.push(`URL:${ensureUrl(l.value)}`);
+  }
+  lines.push(`URL;TYPE=biosite:${pageUrl}`);
+  if (p.avatarUrl?.startsWith("data:image/jpeg")) lines.push(`PHOTO;ENCODING=b;TYPE=JPEG:${p.avatarUrl.split(",")[1]}`);
   lines.push("END:VCARD");
   return lines.join("\r\n");
 }
-
-export const MENU_TAGS: { value: string; label: string; color: string }[] = [
-  { value: "vegano", label: "Vegano", color: "#2F7D4A" },
-  { value: "vegetariano", label: "Vegetariano", color: "#5B8C2A" },
-  { value: "sin gluten", label: "Sin gluten", color: "#B07A12" },
-  { value: "picante", label: "Picante", color: "#C2361B" },
-  { value: "nuevo", label: "Nuevo", color: "#2D5FA8" },
-  { value: "recomendado", label: "Recomendado", color: "#8A3FA0" },
-];
-
-export const tagMeta = (v: string) => MENU_TAGS.find((t) => t.value === v) ?? { value: v, label: v, color: "#666" };

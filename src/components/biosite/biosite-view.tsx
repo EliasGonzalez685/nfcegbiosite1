@@ -1,226 +1,149 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Check, Copy, Eye, EyeOff, QrCode, UserPlus, UtensilsCrossed, Wifi, ChevronRight, MapPin } from "lucide-react";
-import type { Profile } from "@/lib/types";
-import { buildVCard, linkHref, wifiQrString } from "@/lib/links";
+import { Check, Copy, X } from "lucide-react";
+import type { Profile, ProfileLink } from "@/lib/types";
+import { buildVCard, isAction, isComplete, linkHref, wifiQrString } from "@/lib/links";
 import { cn, downloadBlob, profileUrl, slugify } from "@/lib/utils";
 import { useCopy } from "@/lib/hooks";
 import { qrPngDataUrl } from "@/lib/qr";
-import { LinkIcon, BRAND_COLORS } from "./link-icon";
 import { BRAND } from "@/lib/brand";
+import { LinkIcon } from "./link-icon";
 
-export function themeVars(p: Profile) {
-  const dark = p.theme.mode === "dark";
+/** Variables de color a partir del color de marca del negocio */
+export function themeVars(accent: string) {
   return {
-    "--accent": p.theme.accent,
-    "--bg": dark ? "#121212" : `color-mix(in srgb, ${p.theme.accent} 7%, #fbfaf7)`,
-    "--surface": dark ? "#1e1e1e" : "#ffffff",
-    "--text": dark ? "#f3f3f3" : "#1b1b1b",
-    "--muted": dark ? "#a3a3a3" : "#6b6b6b",
-    "--border": dark ? "#2c2c2c" : `color-mix(in srgb, ${p.theme.accent} 14%, #e9e6df)`,
+    "--accent": accent,
+    // versión más clara para bordes/íconos, legible sobre fondo oscuro aunque el color sea oscuro
+    "--accent-l": `color-mix(in srgb, ${accent} 78%, white)`,
+    "--glow": `color-mix(in srgb, ${accent} 45%, transparent)`,
+    background: `radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, ${accent} 26%, #0c0c0d) 0%, #0c0c0d 62%), #0c0c0d`,
   } as React.CSSProperties;
 }
 
-export function radiusFor(p: Profile) {
-  return p.theme.buttonStyle === "pill" ? "rounded-full" : p.theme.buttonStyle === "square" ? "rounded-md" : "rounded-2xl";
-}
+export function BiositeView({ profile: p, preview = false }: { profile: Profile; preview?: boolean }) {
+  const links = p.links.filter(isComplete);
+  const [wifi, setWifi] = useState<ProfileLink | null>(null);
 
-export function BiositeView({
-  profile: p,
-  preview = false,
-  onLinkClick,
-  hasMenu = false,
-}: {
-  profile: Profile;
-  preview?: boolean;
-  onLinkClick?: (linkId: string) => void;
-  hasMenu?: boolean;
-}) {
-  const links = p.links.filter((l) => l.enabled && l.value.trim());
-  const radius = radiusFor(p);
-  const showMenu = p.sections.menu && hasMenu;
-
-  function saveContact() {
-    const vcf = buildVCard(p.contact, { url: profileUrl(p.slug), note: p.tagline });
-    downloadBlob(new Blob([vcf], { type: "text/vcard;charset=utf-8" }), `${slugify(p.name) || "contacto"}.vcf`);
+  function onAction(l: ProfileLink) {
+    if (l.type === "wifi") setWifi(l);
+    if (l.type === "vcard" && !preview) {
+      downloadBlob(new Blob([buildVCard(p, profileUrl(p.slug))], { type: "text/vcard;charset=utf-8" }), `${slugify(p.name) || "contacto"}.vcf`);
+    }
   }
 
   return (
-    <div style={themeVars(p)} className="@container min-h-full bg-[var(--bg)] text-[var(--text)]">
-      <div className="mx-auto w-full max-w-[480px] pb-10">
-        {/* Portada */}
-        <div className="relative h-36 overflow-hidden" style={{ background: `linear-gradient(135deg, ${p.theme.accent}, color-mix(in srgb, ${p.theme.accent} 55%, #000))` }}>
-          {p.coverUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.coverUrl} alt="" className="absolute inset-0 size-full object-cover" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
-        </div>
+    <div style={themeVars(p.accent)} className="relative flex min-h-full flex-1 flex-col overflow-hidden text-white">
+      {/* brillo de fondo */}
+      <div className="pointer-events-none absolute left-1/2 top-10 size-72 -translate-x-1/2 rounded-full opacity-40 blur-3xl" style={{ background: "var(--glow)" }} />
 
-        <div className="relative px-5">
-          <div className="-mt-12 flex justify-center">
-            <div className="size-24 overflow-hidden rounded-full border-4 border-[var(--bg)] bg-[var(--surface)] shadow-lg">
-              {p.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.avatarUrl} alt={p.name} className="size-full object-cover" />
-              ) : (
-                <div className="grid size-full place-items-center font-display text-3xl font-bold text-white" style={{ background: p.theme.accent }}>
-                  {p.name.slice(0, 1).toUpperCase()}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-3 text-center">
-            <h1 className="font-display text-2xl font-bold leading-tight">{p.name || "Tu negocio"}</h1>
-            {p.tagline && <p className="mt-1 text-[15px] text-[var(--muted)]">{p.tagline}</p>}
-            {p.contact.address && (
-              <p className="mt-1.5 inline-flex items-center gap-1 text-xs text-[var(--muted)]">
-                <MapPin className="size-3" /> {p.contact.address}
-              </p>
+      <div className="relative mx-auto flex w-full max-w-[440px] flex-1 flex-col px-6 pb-8 pt-14">
+        {/* Logo */}
+        <div className="mx-auto size-32 rounded-full p-[3px] shadow-[0_0_50px_var(--glow)]" style={{ background: "linear-gradient(145deg, var(--accent-l), var(--accent) 60%, color-mix(in srgb, var(--accent) 55%, black))" }}>
+          <div className="size-full overflow-hidden rounded-full bg-[#141415]">
+            {p.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.avatarUrl} alt={p.name} className="size-full object-cover" />
+            ) : (
+              <div className="grid size-full place-items-center font-display text-5xl font-bold text-[var(--accent-l)]">{(p.name || "?").slice(0, 1).toUpperCase()}</div>
             )}
-            {p.bio && <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-[var(--muted)]">{p.bio}</p>}
           </div>
-
-          {/* Acciones principales */}
-          {(showMenu || p.sections.contact) && (
-            <div className={cn("mt-6 grid gap-2.5", showMenu && p.sections.contact ? "grid-cols-2" : "grid-cols-1")}>
-              {showMenu && (
-                <Link
-                  href={preview ? "#" : `/${p.slug}/menu`}
-                  onClick={(e) => preview && e.preventDefault()}
-                  className={cn("flex h-12 items-center justify-center gap-2 whitespace-nowrap font-semibold text-white shadow-sm transition active:scale-[.98] @max-sm:gap-1.5 @max-sm:text-sm", radius)}
-                  style={{ background: p.theme.accent }}
-                >
-                  <UtensilsCrossed className="size-4" /> Ver menú
-                </Link>
-              )}
-              {p.sections.contact && (
-                <button
-                  onClick={() => !preview && saveContact()}
-                  className={cn(
-                    "flex h-12 items-center justify-center gap-2 whitespace-nowrap border font-semibold transition active:scale-[.98] @max-sm:gap-1.5 @max-sm:text-sm",
-                    radius,
-                    showMenu ? "border-[var(--border)] bg-[var(--surface)]" : "border-transparent text-white",
-                  )}
-                  style={showMenu ? undefined : { background: p.theme.accent }}
-                >
-                  <UserPlus className="size-4" /> <span className="@max-[17rem]:hidden">Guardar</span> contacto
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Enlaces */}
-          {links.length > 0 && (
-            <ul className="mt-5 space-y-2.5">
-              {links.map((l) => (
-                <li key={l.id}>
-                  <a
-                    href={preview ? undefined : linkHref(l)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => onLinkClick?.(l.id)}
-                    className={cn(
-                      "group flex min-h-14 cursor-pointer items-center gap-3 border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 shadow-[0_1px_2px_rgba(0,0,0,.04)] transition hover:-translate-y-px hover:shadow-md active:scale-[.99]",
-                      radius,
-                    )}
-                  >
-                    <span
-                      className={cn("grid size-10 shrink-0 place-items-center text-white", p.theme.buttonStyle === "pill" ? "rounded-full" : "rounded-xl")}
-                      style={{ background: BRAND_COLORS[l.type] ?? p.theme.accent }}
-                    >
-                      <LinkIcon type={l.type} className="size-5" />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{l.label}</span>
-                    <ChevronRight className="size-4 text-[var(--muted)] transition group-hover:translate-x-0.5" />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {/* WiFi */}
-          {p.sections.wifi && p.wifi.length > 0 && (
-            <div className="mt-6 space-y-3">
-              {p.wifi.map((w) => (
-                <WifiCard key={w.id} ssid={w.ssid} password={w.password} security={w.security} hidden={w.hidden} note={w.note} radius={radius} />
-              ))}
-            </div>
-          )}
-
-          <p className="mt-10 text-center text-[11px] text-[var(--muted)] opacity-70">
-            Hecho con <span className="font-semibold">{BRAND.name}</span>
-          </p>
         </div>
+
+        <h1 className="mt-6 text-center font-display text-[32px] font-bold leading-tight tracking-tight">{p.name || "Tu negocio"}</h1>
+        {p.tagline && <p className="mt-1.5 text-center text-[15px] text-white/60">{p.tagline}</p>}
+        <div className="mx-auto mt-5 h-px w-16" style={{ background: "linear-gradient(90deg, transparent, var(--accent-l), transparent)" }} />
+
+        {/* Botones */}
+        <ul className="mt-7 space-y-3.5">
+          {links.map((l) => {
+            const inner = (
+              <>
+                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[var(--accent-l)]">
+                  <LinkIcon type={l.type} className="size-[22px]" />
+                </span>
+                <span className="block truncate px-12 text-center text-[16px] font-medium tracking-wide">{l.label}</span>
+              </>
+            );
+            const cls =
+              "relative block w-full rounded-full border border-[color-mix(in_srgb,var(--accent-l)_55%,transparent)] bg-white/[.04] py-4 shadow-[inset_0_1px_0_rgba(255,255,255,.06)] backdrop-blur transition hover:bg-[color-mix(in_srgb,var(--accent)_16%,transparent)] hover:border-[var(--accent-l)] active:scale-[.98]";
+            return (
+              <li key={l.id}>
+                {isAction(l.type) ? (
+                  <button type="button" onClick={() => onAction(l)} className={cls}>
+                    {inner}
+                  </button>
+                ) : (
+                  <a href={preview ? undefined : linkHref(l)} target="_blank" rel="noopener noreferrer" className={cn(cls, "cursor-pointer")}>
+                    {inner}
+                  </a>
+                )}
+              </li>
+            );
+          })}
+          {links.length === 0 && <li className="rounded-3xl border border-dashed border-white/15 py-8 text-center text-sm text-white/40">Todavía no hay botones</li>}
+        </ul>
+
+        <p className="mt-auto pt-12 text-center text-[11px] tracking-wide text-white/30">
+          Hecho con <span className="font-semibold text-white/50">{BRAND.name}</span>
+        </p>
       </div>
+
+      {wifi && <WifiSheet link={wifi} preview={preview} onClose={() => setWifi(null)} />}
     </div>
   );
 }
 
-function WifiCard({ ssid, password, security, hidden, note, radius }: { ssid: string; password: string; security: "WPA" | "WEP" | "nopass"; hidden: boolean; note?: string; radius: string }) {
+function WifiSheet({ link, onClose, preview }: { link: ProfileLink; onClose: () => void; preview: boolean }) {
   const { copied, copy } = useCopy();
-  const [show, setShow] = useState(false);
-  const [qrOpen, setQrOpen] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
+  const pass = link.password ?? "";
 
   useEffect(() => {
-    if (qrOpen && !qr) qrPngDataUrl(wifiQrString({ ssid, password, security, hidden }), { size: 480 }).then(setQr);
-  }, [qrOpen, qr, ssid, password, security, hidden]);
+    qrPngDataUrl(wifiQrString(link.value, pass), { size: 420 }).then(setQr);
+  }, [link.value, pass]);
 
   return (
-    <div className={cn("overflow-hidden border border-[var(--border)] bg-[var(--surface)]", radius === "rounded-full" ? "rounded-3xl" : radius)}>
-      <div className="flex items-center gap-3 p-4">
-        <span className="grid size-10 place-items-center rounded-xl text-white" style={{ background: "var(--accent)" }}>
-          <Wifi className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs uppercase tracking-wide text-[var(--muted)]">Red WiFi</p>
-          <p className="truncate font-semibold">{ssid}</p>
+    <div className={cn(preview ? "absolute" : "fixed", "inset-0 z-40 flex items-end justify-center bg-black/60 backdrop-blur-sm")} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="animate-rise w-full max-w-[440px] rounded-t-[28px] border-t border-[color-mix(in_srgb,var(--accent-l)_40%,transparent)] bg-[#161617] px-6 pb-8 pt-5 text-white">
+        <div className="flex items-center justify-between">
+          <p className="text-xs uppercase tracking-[.2em] text-[var(--accent-l)]">Red WiFi</p>
+          <button onClick={onClose} className="grid size-8 place-items-center rounded-full text-white/60 hover:bg-white/10" aria-label="Cerrar">
+            <X className="size-5" />
+          </button>
         </div>
-      </div>
-      {security !== "nopass" ? (
-        <div className="border-t border-[var(--border)] px-4 py-3">
-          <p className="text-xs text-[var(--muted)]">Contraseña</p>
-          <div className="mt-1 flex items-center gap-2">
-            <code className="min-w-0 flex-1 truncate font-mono text-[15px]">{show ? password : "•".repeat(Math.min(password.length, 12))}</code>
-            <button onClick={() => setShow((s) => !s)} className="grid size-9 place-items-center rounded-lg text-[var(--muted)] hover:bg-black/5" aria-label="Mostrar contraseña">
-              {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
-          </div>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+        <p className="mt-1 font-display text-2xl font-bold">{link.value}</p>
+
+        {pass ? (
+          <>
+            <div className="mt-5 rounded-2xl bg-white/[.06] px-4 py-3">
+              <p className="text-xs text-white/50">Contraseña</p>
+              <p className="mt-0.5 break-all font-mono text-lg">{pass}</p>
+            </div>
             <button
-              onClick={() => copy(password, "wifi")}
-              className="flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white active:scale-[.98]"
-              style={{ background: "var(--accent)" }}
+              onClick={() => copy(pass, "wifi")}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-full py-3.5 font-semibold text-black active:scale-[.98]"
+              style={{ background: "var(--accent-l)" }}
             >
-              {copied === "wifi" ? <Check className="size-4" /> : <Copy className="size-4" />}
-              {copied === "wifi" ? "¡Copiada!" : "Copiar contraseña"}
+              {copied === "wifi" ? <Check className="size-5" /> : <Copy className="size-5" />}
+              {copied === "wifi" ? "¡Contraseña copiada!" : "Copiar contraseña"}
             </button>
-            <button onClick={() => setQrOpen((o) => !o)} className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[var(--border)] text-sm font-semibold active:scale-[.98]">
-              <QrCode className="size-4" /> QR WiFi
-            </button>
-          </div>
-        </div>
-      ) : (
-        <p className="border-t border-[var(--border)] px-4 py-3 text-sm text-[var(--muted)]">Red abierta, sin contraseña.</p>
-      )}
-      {qrOpen && (
-        <div className="border-t border-[var(--border)] p-4 text-center">
+            <p className="mt-3 text-center text-xs text-white/50">Pegala en Ajustes → WiFi → {link.value}</p>
+          </>
+        ) : (
+          <p className="mt-4 text-sm text-white/60">Red abierta, no necesita contraseña.</p>
+        )}
+
+        <div className="mt-6 flex items-center gap-4 rounded-2xl bg-white/[.04] p-3">
           {qr ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={qr} alt="QR WiFi" className="mx-auto size-48 rounded-xl bg-white p-2" />
+            <img src={qr} alt="QR WiFi" className="size-24 shrink-0 rounded-xl bg-white p-1" />
           ) : (
-            <div className="mx-auto size-48 animate-pulse rounded-xl bg-black/5" />
+            <div className="size-24 shrink-0 animate-pulse rounded-xl bg-white/10" />
           )}
-          <p className="mt-2 text-xs text-[var(--muted)]">Escaneá este código con la cámara de otro celular para conectarte.</p>
+          <p className="text-xs leading-relaxed text-white/55">¿Otra persona quiere conectarse? Que escanee este código con la cámara de su celular y se conecta directo.</p>
         </div>
-      )}
-      <p className="bg-black/[.03] px-4 py-2.5 text-xs leading-relaxed text-[var(--muted)]">
-        {note ? `${note} · ` : ""}Copiá la contraseña y pegala en Ajustes → WiFi → {ssid}.
-      </p>
+      </div>
     </div>
   );
 }

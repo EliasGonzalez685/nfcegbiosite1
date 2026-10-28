@@ -43,7 +43,7 @@ function RegisterForm() {
     setError(null);
     try {
       await auth.signUp(form);
-      router.replace(next || "/panel?bienvenida=1");
+      router.replace(next || "/panel");
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);
@@ -53,7 +53,7 @@ function RegisterForm() {
   return (
     <>
       <h1 className="font-display text-3xl font-bold">Creá tu cuenta</h1>
-      <p className="mt-1.5 text-ink-3">{next?.startsWith("/t/") ? "Después vinculamos tu tarjeta automáticamente." : "Tu biosite listo en minutos."}</p>
+      <p className="mt-1.5 text-ink-3">Tu página lista en minutos.</p>
       <form onSubmit={submit} className="mt-8 space-y-4">
         <Field label="Nombre del negocio">
           <Input required value={form.businessName} onChange={set("businessName")} placeholder="Ej.: Lomitería Don Pedro" />
