@@ -8,6 +8,17 @@ export function formatNumber(n: number) {
   return gsFormatter.format(n);
 }
 
+/** 25000 -> "Gs. 25.000" */
+export function formatGs(value: number) {
+  return `Gs. ${gsFormatter.format(Math.round(value || 0))}`;
+}
+
+/** "25.000" -> 25000 */
+export function parseGs(input: string) {
+  const digits = input.replace(/\D/g, "");
+  return digits ? parseInt(digits, 10) : 0;
+}
+
 export function slugify(input: string) {
   return input
     .normalize("NFD")

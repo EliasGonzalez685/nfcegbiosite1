@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { ArrowRight, Nfc, Palette, QrCode, Wifi } from "lucide-react";
+import { ArrowRight, Nfc, Palette, UtensilsCrossed, Wifi } from "lucide-react";
 import { LogoMark } from "@/components/ui";
 
 const features = [
   { icon: Nfc, title: "Tarjeta NFC o QR", text: "La acercan al celular o la escanean y se abre tu página. Sin instalar nada." },
-  { icon: Palette, title: "Con tu marca", text: "Tu logo, tu nombre y tu color. Botones a WhatsApp, Instagram, ubicación y más." },
+  { icon: Palette, title: "Con tu marca", text: "Tu logo, tu nombre y tu color. Lo editás vos y se actualiza al instante." },
+  { icon: UtensilsCrossed, title: "Menú para gastronomía", text: "Restaurantes y cafeterías: productos con foto y precio en Gs., y pedidos por WhatsApp." },
   { icon: Wifi, title: "WiFi y contacto", text: "Botón para copiar la contraseña del WiFi y otro para guardar tu contacto." },
-  { icon: QrCode, title: "Lo editás vos", text: "Cambiás un enlace y se actualiza al instante. No hace falta reimprimir nada." },
 ];
 
 export default function Home() {
@@ -40,7 +40,7 @@ export default function Home() {
             </Link>
           </div>
           <p className="mt-6 text-sm text-ink-3">
-            Más ejemplos: <Link className="underline" href="/la-cabana-cafe">cafetería</Link> · <Link className="underline" href="/dra-silvia-benitez">odontóloga</Link>
+            Más ejemplos: <Link className="underline" href="/parrilla-lo-de-julio">parrilla con menú</Link> · <Link className="underline" href="/la-cabana-cafe">cafetería</Link> · <Link className="underline" href="/dra-silvia-benitez">odontóloga</Link>
           </p>
         </div>
 

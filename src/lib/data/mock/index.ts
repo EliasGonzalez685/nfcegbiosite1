@@ -3,7 +3,7 @@ import type { Profile } from "@/lib/types";
 import { uid } from "@/lib/utils";
 import { delay, getDB, persist } from "./store";
 
-export const RESERVED_SLUGS = new Set(["panel", "admin", "ingresar", "registro", "recuperar", "api", "login", "salir", "ayuda"]);
+export const RESERVED_SLUGS = new Set(["menu", "panel", "admin", "ingresar", "registro", "recuperar", "api", "login", "salir", "ayuda"]);
 
 function fail(message: string): never {
   throw new Error(message);
@@ -20,6 +20,7 @@ function emptyProfile(ownerId: string, name: string, slug: string): Profile {
     avatarUrl: null,
     accent: "#D4AF37",
     links: [],
+    menu: { enabled: false, orderWhatsapp: "", categories: [] },
     published: true,
     createdAt: ts,
     updatedAt: ts,

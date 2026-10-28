@@ -43,6 +43,30 @@ export interface ProfileLink {
   enabled: boolean;
 }
 
+export interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  /** Precio en guaraníes, entero */
+  price: number;
+  photoUrl: string | null;
+  soldOut: boolean;
+}
+
+export interface MenuCategory {
+  id: string;
+  name: string;
+  items: MenuItem[];
+}
+
+/** Menú opcional para restaurantes, cafeterías, etc. */
+export interface Menu {
+  enabled: boolean;
+  /** Número para recibir pedidos (595981…). Vacío = menú solo para ver, sin carrito */
+  orderWhatsapp: string;
+  categories: MenuCategory[];
+}
+
 export interface Profile {
   id: string;
   ownerId: string;
@@ -53,6 +77,7 @@ export interface Profile {
   /** Color de la marca: reemplaza al dorado del diseño */
   accent: string;
   links: ProfileLink[];
+  menu: Menu;
   published: boolean;
   createdAt: string;
   updatedAt: string;

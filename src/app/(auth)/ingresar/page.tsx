@@ -53,7 +53,8 @@ function LoginForm() {
         <div className="mt-2 grid gap-1.5">
           {[
             ["Barbería (dorado)", "barber@demo.com", "demo123"],
-            ["Cafetería", "cafe@demo.com", "demo123"],
+            ["Cafetería (con menú)", "cafe@demo.com", "demo123"],
+            ["Parrilla (con menú)", "parrilla@demo.com", "demo123"],
             ["Administrador", "admin@nfcegbiosite.com", "admin123"],
           ].map(([label, e, p]) => (
             <button key={e} type="button" onClick={() => { setEmail(e); setPassword(p); }} className="flex items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm hover:bg-paper-2">

@@ -70,7 +70,7 @@ export default function AdminClients() {
                 <p className="truncate"><span className="text-ink-3">Titular:</span> {c.user.name}</p>
                 <p className="truncate"><span className="text-ink-3">Email:</span> {c.user.email}</p>
                 <p className="text-ink-3">
-                  {c.profile?.links.filter((l) => l.enabled).length ?? 0} botones · alta {formatDate(c.user.createdAt)}
+                  {c.profile?.links.filter((l) => l.enabled).length ?? 0} botones{c.profile?.menu.enabled ? ` · menú con ${c.profile.menu.categories.reduce((n, x) => n + x.items.length, 0)} productos` : ""} · alta {formatDate(c.user.createdAt)}
                 </p>
               </div>
               <div className="mt-4 flex gap-2">

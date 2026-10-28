@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, X } from "lucide-react";
+import Link from "next/link";
+import { Check, ChevronRight, Copy, UtensilsCrossed, X } from "lucide-react";
 import type { Profile, ProfileLink } from "@/lib/types";
 import { buildVCard, isAction, isComplete, linkHref, wifiQrString } from "@/lib/links";
 import { cn, downloadBlob, profileUrl, slugify } from "@/lib/utils";
 import { useCopy } from "@/lib/hooks";
 import { qrPngDataUrl } from "@/lib/qr";
 import { BRAND } from "@/lib/brand";
+import { hasMenu } from "@/lib/menu";
 import { LinkIcon } from "./link-icon";
 
 /** Variables de color a partir del color de marca del negocio */
@@ -21,7 +23,7 @@ export function themeVars(accent: string) {
   } as React.CSSProperties;
 }
 
-export function BiositeView({ profile: p, preview = false }: { profile: Profile; preview?: boolean }) {
+export function BiositeView({ profile: p, preview = false, onOpenMenu }: { profile: Profile; preview?: boolean; onOpenMenu?: () => void }) {
   const links = p.links.filter(isComplete);
   const [wifi, setWifi] = useState<ProfileLink | null>(null);
 
@@ -54,8 +56,26 @@ export function BiositeView({ profile: p, preview = false }: { profile: Profile;
         {p.tagline && <p className="mt-1.5 text-center text-[15px] text-white/60">{p.tagline}</p>}
         <div className="mx-auto mt-5 h-px w-16" style={{ background: "linear-gradient(90deg, transparent, var(--accent-l), transparent)" }} />
 
+        {/* Menú (restaurantes, cafeterías…) */}
+        {hasMenu(p) && (
+          <Link
+            href={`/${p.slug}/menu`}
+            onClick={(e) => {
+              if (onOpenMenu) {
+                e.preventDefault();
+                onOpenMenu();
+              }
+            }}
+            className="group relative mt-7 flex items-center justify-center gap-2.5 rounded-full py-4 text-[17px] font-semibold text-black shadow-[0_8px_30px_var(--glow)] transition active:scale-[.98]"
+            style={{ background: "linear-gradient(135deg, var(--accent-l), var(--accent))" }}
+          >
+            <UtensilsCrossed className="size-5" /> Ver menú
+            <ChevronRight className="absolute right-5 size-5 transition group-hover:translate-x-0.5" />
+          </Link>
+        )}
+
         {/* Botones */}
-        <ul className="mt-7 space-y-3.5">
+        <ul className={cn("space-y-3.5", hasMenu(p) ? "mt-3.5" : "mt-7")}>
           {links.map((l) => {
             const inner = (
               <>

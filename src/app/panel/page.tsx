@@ -12,6 +12,9 @@ import { useSession } from "@/components/session";
 import { useToast } from "@/components/ui/toast";
 import { Button, Field, ImageUpload, Input, Modal, PageLoader, Spinner, Textarea, Toggle } from "@/components/ui";
 import { BiositeView } from "@/components/biosite/biosite-view";
+import { MenuView } from "@/components/biosite/menu-view";
+import { MenuEditor } from "@/components/panel/menu-editor";
+import { hasMenu } from "@/lib/menu";
 import { LinkIcon } from "@/components/biosite/link-icon";
 import { PhoneFrame } from "@/components/panel/top-bar";
 import { QrDownloads, QrImage } from "@/components/panel/qr-tools";
@@ -27,6 +30,7 @@ export default function Editor() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [check, setCheck] = useState<{ slug: string; ok: boolean } | null>(null);
+  const [view, setView] = useState<"page" | "menu">("page");
 
   if (profile && (!draft || draft.id !== profile.id)) setDraft(profile);
 
@@ -95,17 +99,29 @@ export default function Editor() {
     }
   }
 
+  const showMenu = view === "menu" && hasMenu(draft);
   const preview = (
-    <PhoneFrame>
-      <BiositeView profile={draft} preview />
-    </PhoneFrame>
+    <div>
+      {hasMenu(draft) && (
+        <div className="mx-auto mb-3 flex w-fit rounded-xl bg-paper-2 p-1 text-xs font-semibold">
+          {(["page", "menu"] as const).map((v) => (
+            <button key={v} onClick={() => setView(v)} className={cn("rounded-lg px-3 py-1.5", (v === "menu") === showMenu ? "bg-white shadow-sm" : "text-ink-3")}>
+              {v === "page" ? "Página" : "Menú"}
+            </button>
+          ))}
+        </div>
+      )}
+      <PhoneFrame key={showMenu ? "menu" : "page"}>
+        {showMenu ? <MenuView profile={draft} preview onBack={() => setView("page")} /> : <BiositeView profile={draft} preview onOpenMenu={() => setView("menu")} />}
+      </PhoneFrame>
+    </div>
   );
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-32 pt-6 sm:px-6 lg:pt-10">
       <div className="mb-6">
         <h1 className="font-display text-2xl font-bold sm:text-3xl">Tu página</h1>
-        <p className="mt-1 text-ink-3">Editá tu logo, nombre, color y botones. Los cambios se ven al instante en la vista previa.</p>
+        <p className="mt-1 text-ink-3">Editá tu logo, nombre, color, botones y menú. Los cambios se ven al instante en la vista previa.</p>
       </div>
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10">
@@ -176,6 +192,15 @@ export default function Editor() {
               </ul>
             )}
           </section>
+
+          <MenuEditor
+            menu={draft.menu}
+            onChange={(menu) => update({ menu })}
+            onShowPreview={() => {
+              setView("menu");
+              if (window.innerWidth < 1024) setPreviewOpen(true);
+            }}
+          />
 
           {/* Dirección y QR */}
           <section className="card p-5 sm:p-6">

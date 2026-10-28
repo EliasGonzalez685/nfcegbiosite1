@@ -1,6 +1,6 @@
 # NFCEGBIOSITE — Biosites para tarjetas NFC y QR
 
-Cada negocio tiene una página oscura con su logo, su color y una lista de botones (WhatsApp, redes, ubicación, WiFi, guardar contacto). La tarjeta NFC o el QR apuntan a esa página.
+Cada negocio tiene una página oscura con su logo, su color y una lista de botones (WhatsApp, redes, ubicación, WiFi, guardar contacto). Restaurantes y cafeterías pueden activar un menú con productos, fotos, precios en Gs. y pedido por WhatsApp. La tarjeta NFC o el QR apuntan a esa página.
 
 Frontend en Next.js (App Router) + TypeScript + Tailwind v4, por ahora con **datos de prueba**.
 Supabase se conecta después reemplazando la capa de datos.
@@ -21,7 +21,8 @@ Abrí http://localhost:3000
 | Rol | Email | Contraseña |
 | --- | --- | --- |
 | Barbería El Patrón (dorado) | barber@demo.com | demo123 |
-| La Cabaña Café | cafe@demo.com | demo123 |
+| La Cabaña Café (con menú) | cafe@demo.com | demo123 |
+| Parrilla Lo de Julio (con menú) | parrilla@demo.com | demo123 |
 | Dra. Silvia Benítez | dra@demo.com | demo123 |
 | Administrador | admin@nfcegbiosite.com | admin123 |
 
@@ -40,8 +41,9 @@ Para que los QR generados apunten a esa IP, creá `.env.local` con
 | --- | --- |
 | `/` | Inicio / presentación |
 | `/[direccion]` | Página pública del negocio |
+| `/[direccion]/menu` | Menú (si el negocio lo activó): productos con foto y precio, pedido por WhatsApp |
 | `/registro`, `/ingresar`, `/recuperar` | Autenticación |
-| `/panel` | Editor del cliente (perfil, color, botones, QR) con vista previa |
+| `/panel` | Editor del cliente (perfil, color, botones, menú, QR) con vista previa |
 | `/admin` | Lista de clientes (ver página, suspender) |
 
 ## Estructura
