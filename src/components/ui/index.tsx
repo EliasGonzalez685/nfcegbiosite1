@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { Loader2, X, ImagePlus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { db } from "@/lib/data";
+import { friendlyError } from "@/lib/supabase";
 import { useToast } from "./toast";
 import { BRAND } from "@/lib/brand";
 
@@ -161,9 +161,12 @@ export function ImageUpload({
   shape = "square",
   maxSize = 800,
   className,
+  upload,
 }: {
   value: string | null;
   onChange: (url: string | null) => void;
+  /** Sube el archivo y devuelve la URL pública */
+  upload: (file: File, maxSize: number) => Promise<string>;
   label?: string;
   shape?: "square" | "circle" | "wide";
   maxSize?: number;
@@ -177,9 +180,9 @@ export function ImageUpload({
     if (!file) return;
     setBusy(true);
     try {
-      onChange(await db.storage.uploadImage(file, { maxSize }));
+      onChange(await upload(file, maxSize));
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(friendlyError(e));
     } finally {
       setBusy(false);
       if (ref.current) ref.current.value = "";

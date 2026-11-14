@@ -1,92 +1,77 @@
 "use client";
 
-import { useState } from "react";
-import { ExternalLink, RotateCcw, Search } from "lucide-react";
-import { db } from "@/lib/data";
-import { resetDB } from "@/lib/data/mock/store";
+import Link from "next/link";
+import { ArrowRight, Gift, Nfc, ScanLine, Store, Target, UserPlus } from "lucide-react";
+import { dashboardCounts, listActivity } from "@/lib/api";
 import { useAsync } from "@/lib/hooks";
-import { formatDate } from "@/lib/utils";
-import { BRAND } from "@/lib/brand";
-import { useToast } from "@/components/ui/toast";
-import { Badge, Button, EmptyState, PageLoader } from "@/components/ui";
-import type { ClientRow } from "@/lib/types";
+import { formatNumber } from "@/lib/utils";
+import { useSession } from "@/components/session";
+import { Page } from "@/components/panel/top-bar";
+import { ActivityFeed } from "@/components/activity-feed";
+import { PageLoader } from "@/components/ui";
 
-export default function AdminClients() {
-  const toast = useToast();
-  const [q, setQ] = useState("");
-  const { data, loading, reload } = useAsync(() => db.users.listClients(q), [q]);
+export default function StaffHome() {
+  const { me } = useSession();
+  const counts = useAsync(() => dashboardCounts(), []);
+  const feed = useAsync(() => listActivity({ limit: 12 }), []);
+  const isAdmin = me?.role === "admin";
+  const hour = new Date().getHours();
+  const hello = hour < 12 ? "Buen día" : hour < 19 ? "Buenas tardes" : "Buenas noches";
 
-  async function toggle(c: ClientRow) {
-    const next = c.user.status === "active" ? "suspended" : "active";
-    if (next === "suspended" && !confirm(`¿Suspender a ${c.profile?.name ?? c.user.name}? No podrá entrar a su panel.`)) return;
-    await db.users.setStatus(c.user.id, next);
-    toast.success(next === "active" ? "Cuenta reactivada" : "Cuenta suspendida");
-    reload();
-  }
-
-  function reset() {
-    if (!confirm("¿Restaurar los datos de prueba? Se pierden los cambios hechos en este navegador.")) return;
-    resetDB();
-    window.location.reload();
-  }
+  const stats = [
+    { label: "Negocios", value: counts.data?.businesses, icon: Store, href: "/admin/negocios" },
+    { label: "Plaquitas", value: counts.data?.plaques, icon: Nfc, href: "/admin/plaquitas" },
+    { label: "Escaneos (30 días)", value: counts.data?.scans, icon: ScanLine, href: "/admin/plaquitas" },
+    { label: "Tarjetas de fidelidad", value: counts.data?.cards, icon: Gift, href: "/admin/negocios" },
+  ];
+  const actions = [
+    { label: "Nuevo negocio", text: "Con su cuenta de cliente", icon: Store, href: "/admin/negocios?nuevo=1" },
+    { label: "Configurar plaquita", text: "NFC o QR, cualquier destino", icon: Nfc, href: "/admin/plaquitas?nueva=1" },
+    { label: isAdmin ? "Nuevo usuario" : "Nuevo cliente", text: isAdmin ? "Vendedor, cliente o admin" : "Cuenta para un negocio", icon: UserPlus, href: "/admin/usuarios?nuevo=1" },
+    { label: "Cargar prospecto", text: "Un posible cliente", icon: Target, href: "/admin/prospectos?nuevo=1" },
+  ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:py-10">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold sm:text-3xl">Clientes</h1>
-          <p className="mt-1 text-ink-3">{data ? `${data.length} negocios con página en ${BRAND.name}` : "…"}</p>
-        </div>
-        <Button variant="ghost" icon={<RotateCcw className="size-4" />} onClick={reset}>Reiniciar demo</Button>
+    <Page>
+      <div className="mb-8">
+        <p className="text-ink-3">{hello},</p>
+        <h1 className="font-display text-3xl font-bold">{me?.fullName || me?.email}</h1>
       </div>
 
-      <div className="mb-4 flex items-center gap-2 rounded-xl border border-line bg-white px-3">
-        <Search className="size-4 text-ink-3" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por negocio, nombre o email" className="h-11 flex-1 bg-transparent outline-none" />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {stats.map((s, i) => (
+          <Link key={s.label} href={s.href} className={i === 0 ? "group rounded-2xl bg-ink p-5 text-white transition hover:-translate-y-0.5" : "card group p-5 transition hover:-translate-y-0.5 hover:shadow-md"}>
+            <s.icon className={i === 0 ? "size-5 text-white/60" : "size-5 text-ink-3"} />
+            <p className="mt-3 font-display text-3xl font-bold tabular-nums">{counts.loading ? "…" : formatNumber(s.value ?? 0)}</p>
+            <p className={i === 0 ? "text-sm text-white/70" : "text-sm text-ink-3"}>{s.label}</p>
+          </Link>
+        ))}
       </div>
 
-      {loading && !data ? (
-        <PageLoader />
-      ) : !data?.length ? (
-        <EmptyState title="Sin clientes" description={q ? "Probá con otra búsqueda." : "Cuando alguien cree su cuenta aparecerá acá."} />
-      ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {data.map((c) => (
-            <li key={c.user.id} className="card flex flex-col p-4">
-              <div className="flex items-center gap-3">
-                <span className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-full bg-[#141415] p-[2px]" style={{ background: c.profile?.accent ?? "#999" }}>
-                  <span className="grid size-full place-items-center overflow-hidden rounded-full bg-[#141415] font-semibold text-white">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {c.profile?.avatarUrl ? <img src={c.profile.avatarUrl} alt="" className="size-full object-cover" /> : (c.profile?.name ?? "?").slice(0, 1)}
-                  </span>
+      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.3fr]">
+        <section>
+          <h2 className="mb-3 font-display text-lg font-semibold">Acciones rápidas</h2>
+          <div className="grid gap-2">
+            {actions.map((a) => (
+              <Link key={a.label} href={a.href} className="card group flex items-center gap-4 p-4 transition hover:border-ink-3">
+                <span className="grid size-11 place-items-center rounded-xl bg-brand-soft text-brand transition group-hover:scale-110"><a.icon className="size-5" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{a.label}</span>
+                  <span className="block text-sm text-ink-3">{a.text}</span>
                 </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{c.profile?.name ?? "Sin página"}</p>
-                  <p className="truncate text-sm text-ink-3">{c.profile ? `/${c.profile.slug}` : "—"}</p>
-                </div>
-                {c.user.status === "active" ? <Badge tone="ok">Activo</Badge> : <Badge tone="danger">Suspendido</Badge>}
-              </div>
-              <div className="mt-3 space-y-0.5 text-sm">
-                <p className="truncate"><span className="text-ink-3">Titular:</span> {c.user.name}</p>
-                <p className="truncate"><span className="text-ink-3">Email:</span> {c.user.email}</p>
-                <p className="text-ink-3">
-                  {c.profile?.links.filter((l) => l.enabled).length ?? 0} botones{c.profile?.menu.enabled ? ` · menú con ${c.profile.menu.categories.reduce((n, x) => n + x.items.length, 0)} productos` : ""} · alta {formatDate(c.user.createdAt)}
-                </p>
-              </div>
-              <div className="mt-4 flex gap-2">
-                {c.profile && (
-                  <a href={`/${c.profile.slug}`} target="_blank" className="flex-1">
-                    <Button variant="secondary" size="sm" className="w-full" icon={<ExternalLink className="size-4" />}>Ver página</Button>
-                  </a>
-                )}
-                <Button variant={c.user.status === "active" ? "danger" : "primary"} size="sm" onClick={() => toggle(c)}>
-                  {c.user.status === "active" ? "Suspender" : "Reactivar"}
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+                <ArrowRight className="size-4 text-ink-3 transition group-hover:translate-x-1" />
+              </Link>
+            ))}
+          </div>
+        </section>
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-lg font-semibold">{isAdmin ? "Últimos movimientos" : "Tu actividad reciente"}</h2>
+            <Link href="/admin/actividad" className="text-sm font-medium text-brand hover:underline">Ver todo</Link>
+          </div>
+          <div className="card p-2">{feed.loading && !feed.data ? <PageLoader /> : <ActivityFeed entries={feed.data ?? []} compact />}</div>
+        </section>
+      </div>
+    </Page>
   );
 }

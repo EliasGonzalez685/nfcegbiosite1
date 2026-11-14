@@ -1,83 +1,63 @@
-# NFCEGBIOSITE — Biosites para tarjetas NFC y QR
+# NFCEGBIOSITE
 
-Cada negocio tiene una página oscura con su logo, su color y una lista de botones (WhatsApp, redes, ubicación, WiFi, guardar contacto). Restaurantes y cafeterías pueden activar un menú con productos, fotos, precios en Gs. y pedido por WhatsApp. La tarjeta NFC o el QR apuntan a esa página.
+Plataforma de plaquitas **NFC y QR** para negocios de Paraguay: cada negocio tiene su página (logo, color, botones de WhatsApp, redes, WiFi, guardar contacto), un menú opcional (editable, PDF o fotos) y una **tarjeta de fidelidad** con sellos. Las plaquitas tienen un código fijo y su destino se cambia desde el panel cuando quieran.
 
-Frontend en Next.js (App Router) + TypeScript + Tailwind v4, por ahora con **datos de prueba**.
-Supabase se conecta después reemplazando la capa de datos.
+Next.js (App Router) + TypeScript + Tailwind v4, con **Supabase** (auth, base de datos, archivos y funciones).
 
-## Cómo ejecutarlo
+## Ejecutar
 
 Requisitos: Node.js 20 o superior.
 
 ```bash
 npm install
-npm run dev
+npm run dev        # http://localhost:3000
+npm run dev:red    # para abrirlo desde el celular en la misma red WiFi
 ```
 
-Abrí http://localhost:3000
+No hace falta `.env.local`: la dirección y la clave pública de Supabase ya vienen por defecto (ver `src/lib/config.ts`). Para producción conviene definir `NEXT_PUBLIC_BASE_URL` con el dominio real, porque es la dirección que se graba en las plaquitas (ver `.env.example`).
 
-### Cuentas de prueba
+## Cuentas
 
-| Rol | Email | Contraseña |
-| --- | --- | --- |
-| Barbería El Patrón (dorado) | barber@demo.com | demo123 |
-| La Cabaña Café (con menú) | cafe@demo.com | demo123 |
-| Parrilla Lo de Julio (con menú) | parrilla@demo.com | demo123 |
-| Dra. Silvia Benítez | dra@demo.com | demo123 |
-| Administrador | admin@nfcegbiosite.com | admin123 |
+- Administradores: `admin1` y `admin2` (en el login se puede escribir solo el usuario; el email completo es `admin1@nfcegbiosite.com`). Cada uno puede cambiar su email y contraseña en **Mi cuenta**.
+- Los vendedores y clientes los crean los administradores (y los vendedores pueden crear clientes) desde el panel.
 
-Los datos se guardan en el `localStorage` del navegador. Para volver al estado inicial:
-panel admin → **Reiniciar demo**.
+## Roles
 
-### Probar desde el celular
-
-`npm run dev -- -H 0.0.0.0` y abrí `http://IP-DE-TU-PC:3000` desde el celular (misma red WiFi).
-Para que los QR generados apunten a esa IP, creá `.env.local` con
-`NEXT_PUBLIC_BASE_URL=http://IP-DE-TU-PC:3000`.
-
-## Rutas
-
-| Ruta | Pantalla |
+| Rol | Ve y hace |
 | --- | --- |
-| `/` | Inicio / presentación |
-| `/[direccion]` | Página pública del negocio |
-| `/[direccion]/menu` | Menú (si el negocio lo activó): productos con foto y precio, pedido por WhatsApp |
-| `/registro`, `/ingresar`, `/recuperar` | Autenticación |
-| `/panel` | Editor del cliente (perfil, color, botones, menú, QR) con vista previa |
-| `/admin` | Lista de clientes (ver página, suspender) |
+| Admin | Todo: negocios, usuarios (crear, cambiar email/contraseña/rol, suspender), plaquitas, prospectos, actividad de todos. |
+| Vendedor | Crea clientes y negocios, edita los negocios que atiende, configura y graba sus plaquitas, carga prospectos. Ve solo lo suyo. |
+| Cliente | Edita su página, menú y fidelización. Ve sus plaquitas. |
 
-## Estructura
+## Pantallas
 
-```
-src/
-  app/                    rutas (App Router)
-  components/
-    biosite/              página pública (también usada en la vista previa)
-    panel/                barra superior, marco de celular, herramientas QR
-    ui/                   componentes base (botones, inputs, modal, toasts)
-  lib/
-    types.ts              tipos de dominio (≈ tablas de Supabase)
-    data/
-      repository.ts       ← CONTRATO de la capa de datos
-      index.ts            ← elige la implementación (hoy: mock)
-      mock/               implementación con localStorage + semilla
-    auth/                 contrato de auth + implementación mock
-    qr.ts                 generación de QR PNG / SVG / PDF con logo
-    links.ts              enlaces, WhatsApp, vCard, QR WiFi
-```
+| Ruta | Para qué |
+| --- | --- |
+| `/` | Presentación |
+| `/ingresar`, `/recuperar`, `/restablecer` | Acceso y recuperación de contraseña |
+| `/cuenta` | Mi cuenta: nombre, teléfono, email y contraseña |
+| `/panel` | Cliente: su negocio (Página · Menú · Fidelización · Plaquitas) |
+| `/admin` | Inicio del admin/vendedor |
+| `/admin/negocios`, `/admin/negocios/[id]` | Negocios y su editor (más dueño y vendedor) |
+| `/admin/plaquitas` | Plaquitas NFC/QR: crear, cambiar destino, descargar QR, **grabar y leer NFC** |
+| `/admin/usuarios` | Cuentas |
+| `/admin/prospectos` | Posibles clientes con su estado |
+| `/admin/actividad` | Registro de todo lo que hace cada persona |
+| `/[direccion]` y `/[direccion]/menu` | Página pública del negocio y su menú |
+| `/q/CODIGO` | Lo que abre una plaquita (redirige al destino configurado) |
+| `/f/CODIGO` | Tarjeta de fidelidad del cliente final (sumar sellos y canjear) |
 
-## Pasar a Supabase
+## Plaquitas NFC / QR
 
-1. Crear `src/lib/data/supabase/index.ts` que implemente `DataRepository` (`repository.ts`).
-2. Crear `src/lib/auth/supabase.ts` que implemente `AuthService` con `supabase.auth`.
-3. Cambiar las exportaciones en `src/lib/data/index.ts` y `src/lib/auth/index.ts`.
-4. Las páginas no cambian: solo hablan con `db` y `auth`.
+- Cada plaquita tiene un código de 6 caracteres. Su dirección es `https://<dominio>/q/CODIGO`: eso se graba en el chip NFC y se imprime como QR.
+- Destinos: página del negocio, menú, WiFi, tarjeta de fidelidad, WhatsApp, Instagram, reseña de Google, ubicación o cualquier enlace. Se cambia sin reimprimir ni volver a grabar.
+- **Grabar NFC** funciona desde **Chrome en Android** (Web NFC). En iPhone o compu, el panel ofrece copiar el enlace para grabarlo con la app NFC Tools.
+- Grabá las plaquitas definitivas desde la web publicada (no desde `localhost`), así quedan con el dominio correcto.
 
-Recomendaciones para ese paso:
-- `/[slug]` como Server Component para SEO y vista previa al compartir en WhatsApp.
-- Fotos en Supabase Storage (bucket público `media`), RLS para que cada cliente solo edite su perfil.
+## Fidelización
 
-## Notas
+El cliente final escanea o acerca el celular a una plaquita con destino **Tarjeta de fidelidad**: la primera vez deja su nombre y WhatsApp y suma un sello; las siguientes suma solo (su tarjeta queda guardada en el celular). Hay un tiempo mínimo entre sellos para evitar trampas. Al completar los sellos, el personal del local entrega el premio ingresando su **PIN** en el celular del cliente (5 intentos y bloqueo de 15 minutos).
 
-- El nombre, dominio y logotipo de la plataforma se configuran en `src/lib/brand.ts`.
-- Una web no puede conectar el celular al WiFi automáticamente; por eso el botón WiFi muestra la contraseña con “Copiar” y un QR de WiFi.
+## Base de datos
+
+Todo lo de Supabase (tablas, permisos, funciones y migraciones) está en [`supabase/`](supabase/README.md).

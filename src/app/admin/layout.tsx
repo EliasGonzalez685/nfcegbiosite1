@@ -1,15 +1,18 @@
 "use client";
 
-import { RequireRole } from "@/components/session";
-import { TopBar } from "@/components/panel/top-bar";
+import { RequireRole, useSession } from "@/components/session";
+import { AppShell } from "@/components/panel/top-bar";
+import { navFor } from "@/components/nav";
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+function Shell({ children }: { children: React.ReactNode }) {
+  const { me } = useSession();
+  return <AppShell nav={navFor(me?.role)}>{children}</AppShell>;
+}
+
+export default function StaffLayout({ children }: { children: React.ReactNode }) {
   return (
-    <RequireRole role="admin">
-      <div className="min-h-dvh">
-        <TopBar badge="Admin" />
-        {children}
-      </div>
+    <RequireRole roles={["admin", "seller"]}>
+      <Shell>{children}</Shell>
     </RequireRole>
   );
 }

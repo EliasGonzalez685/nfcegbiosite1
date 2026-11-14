@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Pencil, Plus, Trash2, UtensilsCrossed } from "lucide-react";
-import type { Menu, MenuCategory, MenuItem } from "@/lib/types";
+import { useRef, useState } from "react";
+import { ChevronDown, ChevronUp, FileText, Images, LayoutList, Loader2, Pencil, Plus, Trash2, Upload, UtensilsCrossed } from "lucide-react";
+import type { Menu, MenuCategory, MenuItem, MenuMode } from "@/lib/types";
+import { uploadImage, uploadPdf } from "@/lib/api";
+import { friendlyError } from "@/lib/supabase";
 import { cn, formatGs, formatNumber, parseGs, uid } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import { Button, Field, ImageUpload, Input, Modal, Select, Textarea, Toggle } from "@/components/ui";
@@ -18,7 +20,13 @@ function moveIn<T>(list: T[], from: number, to: number) {
 }
 
 /** Sección "Menú" del panel: se guarda junto con el resto con el botón Guardar */
-export function MenuEditor({ menu, onChange, onShowPreview }: { menu: Menu; onChange: (m: Menu) => void; onShowPreview: () => void }) {
+const MODES: { mode: MenuMode; title: string; text: string; icon: typeof LayoutList }[] = [
+  { mode: "items", title: "Editable", text: "Productos con foto, precio y pedidos por WhatsApp", icon: LayoutList },
+  { mode: "pdf", title: "PDF", text: "Subís tu carta en PDF", icon: FileText },
+  { mode: "images", title: "Fotos", text: "Fotos de tu carta o pizarra", icon: Images },
+];
+
+export function MenuEditor({ businessId, menu, onChange, onShowPreview }: { businessId: string; menu: Menu; onChange: (m: Menu) => void; onShowPreview: () => void }) {
   const toast = useToast();
   const [editing, setEditing] = useState<Editing | null>(null);
   const [catModal, setCatModal] = useState<{ id?: string; name: string } | null>(null);
@@ -32,7 +40,7 @@ export function MenuEditor({ menu, onChange, onShowPreview }: { menu: Menu; onCh
     const name = catModal?.name.trim();
     if (!name) return;
     if (catModal?.id) patchCat(catModal.id, (c) => ({ ...c, name }));
-    else setCats([...cats, { id: uid("c_"), name, items: [] }]);
+    else setCats([...cats, { id: uid(), name, items: [] }]);
     setCatModal(null);
   }
 
@@ -42,7 +50,7 @@ export function MenuEditor({ menu, onChange, onShowPreview }: { menu: Menu; onCh
   }
 
   function newItem(categoryId: string) {
-    setEditing({ categoryId, isNew: true, item: { id: uid("i_"), name: "", description: "", price: 0, photoUrl: null, soldOut: false } });
+    setEditing({ categoryId, isNew: true, item: { id: uid(), name: "", description: "", price: 0, photoUrl: null, soldOut: false } });
   }
 
   function saveItem() {
@@ -85,6 +93,31 @@ export function MenuEditor({ menu, onChange, onShowPreview }: { menu: Menu; onCh
         </button>
       ) : (
         <div className="mt-5 space-y-4">
+          <div>
+            <p className="label">¿Cómo querés mostrar tu menú?</p>
+            <div className="grid grid-cols-3 gap-2">
+              {MODES.map((m) => (
+                <button
+                  key={m.mode}
+                  type="button"
+                  onClick={() => onChange({ ...menu, mode: m.mode })}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-2xl border p-3 text-left transition",
+                    menu.mode === m.mode ? "border-brand bg-brand-soft/60 ring-2 ring-brand/20" : "border-line hover:border-ink-3",
+                  )}
+                >
+                  <m.icon className={cn("size-5", menu.mode === m.mode ? "text-brand" : "text-ink-3")} />
+                  <span className="font-semibold">{m.title}</span>
+                  <span className="text-xs leading-snug text-ink-3 max-sm:hidden">{m.text}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {menu.mode === "pdf" && <PdfSection businessId={businessId} menu={menu} onChange={onChange} />}
+          {menu.mode === "images" && <ImagesSection businessId={businessId} menu={menu} onChange={onChange} onShowPreview={onShowPreview} />}
+
+          {menu.mode === "items" && (<>
           <Field label="WhatsApp para pedidos (opcional)" hint="Si lo completás, tus clientes pueden armar el pedido y enviártelo. Vacío = el menú es solo para ver.">
             <Input inputMode="numeric" value={menu.orderWhatsapp} onChange={(e) => onChange({ ...menu, orderWhatsapp: e.target.value.replace(/\D/g, "") })} placeholder="595981123456" />
           </Field>
@@ -143,6 +176,7 @@ export function MenuEditor({ menu, onChange, onShowPreview }: { menu: Menu; onCh
             <Button variant="secondary" icon={<Plus className="size-4" />} onClick={() => setCatModal({ name: "" })}>Nueva categoría</Button>
             {totalItems > 0 && <Button variant="ghost" icon={<UtensilsCrossed className="size-4" />} onClick={onShowPreview}>Ver menú en la vista previa</Button>}
           </div>
+          </>)}
         </div>
       )}
 
@@ -164,7 +198,7 @@ export function MenuEditor({ menu, onChange, onShowPreview }: { menu: Menu; onCh
           <div className="grid gap-5 sm:grid-cols-[150px_1fr]">
             <div>
               <p className="label">Foto</p>
-              <ImageUpload value={editing.item.photoUrl} onChange={(photoUrl) => setEditing({ ...editing, item: { ...editing.item, photoUrl } })} label="Subir foto" maxSize={700} />
+              <ImageUpload value={editing.item.photoUrl} onChange={(photoUrl) => setEditing({ ...editing, item: { ...editing.item, photoUrl } })} label="Subir foto" maxSize={900} upload={(f, max) => uploadImage(businessId, f, max)} />
             </div>
             <div className="grid gap-4">
               <Field label="Nombre">
@@ -220,5 +254,102 @@ function IconBtn({ children, label, onClick, disabled, danger }: { children: Rea
     <button title={label} aria-label={label} onClick={onClick} disabled={disabled} className={cn("grid size-8 place-items-center rounded-lg text-ink-3 hover:bg-white disabled:opacity-25", danger ? "hover:text-danger" : "hover:text-ink")}>
       {children}
     </button>
+  );
+}
+
+function useFilePicker(accept: string, onFiles: (files: File[]) => Promise<void>, multiple = false) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const input = (
+    <input
+      ref={ref}
+      type="file"
+      accept={accept}
+      multiple={multiple}
+      className="hidden"
+      onChange={async (e) => {
+        const files = Array.from(e.target.files ?? []);
+        if (!files.length) return;
+        setBusy(true);
+        try {
+          await onFiles(files);
+        } catch (err) {
+          toast.error(friendlyError(err));
+        } finally {
+          setBusy(false);
+          if (ref.current) ref.current.value = "";
+        }
+      }}
+    />
+  );
+  return { open: () => ref.current?.click(), busy, input };
+}
+
+function PdfSection({ businessId, menu, onChange }: { businessId: string; menu: Menu; onChange: (m: Menu) => void }) {
+  const picker = useFilePicker("application/pdf", async ([f]) => onChange({ ...menu, pdfUrl: await uploadPdf(businessId, f) }));
+  return (
+    <div className="rounded-2xl border border-line p-4">
+      {picker.input}
+      {menu.pdfUrl ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="grid size-12 place-items-center rounded-xl bg-red-50 text-danger"><FileText className="size-6" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">Menú en PDF cargado</p>
+            <a href={menu.pdfUrl} target="_blank" rel="noopener" className="text-sm text-brand underline-offset-2 hover:underline">Abrir para revisar</a>
+          </div>
+          <Button variant="secondary" size="sm" loading={picker.busy} icon={<Upload className="size-4" />} onClick={picker.open}>Reemplazar</Button>
+        </div>
+      ) : (
+        <button type="button" onClick={picker.open} disabled={picker.busy} className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-line py-8 text-sm text-ink-3 hover:border-brand hover:text-brand">
+          {picker.busy ? <Loader2 className="size-7 animate-spin" /> : <Upload className="size-7" />}
+          <span className="font-medium">{picker.busy ? "Subiendo…" : "Subir menú en PDF (hasta 15 MB)"}</span>
+          <span className="text-xs">Cuando cambien los precios, subí el nuevo y listo: la plaquita sigue igual.</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ImagesSection({ businessId, menu, onChange, onShowPreview }: { businessId: string; menu: Menu; onChange: (m: Menu) => void; onShowPreview: () => void }) {
+  const picker = useFilePicker(
+    "image/*",
+    async (files) => {
+      const added = [];
+      for (const f of files) added.push({ id: uid(), url: await uploadImage(businessId, f, 1800), caption: "" });
+      onChange({ ...menu, images: [...menu.images, ...added] });
+    },
+    true,
+  );
+  const imgs = menu.images;
+  const set = (images: typeof imgs) => onChange({ ...menu, images });
+  return (
+    <div className="space-y-3">
+      {picker.input}
+      {imgs.length > 0 && (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {imgs.map((m, i) => (
+            <li key={m.id} className="overflow-hidden rounded-2xl border border-line bg-white">
+              <div className="relative aspect-[3/4] bg-paper-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={m.url} alt="" className="absolute inset-0 size-full object-cover" />
+                <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-semibold text-white">{i + 1}</span>
+              </div>
+              <div className="flex items-center gap-0.5 p-1.5">
+                <input value={m.caption} onChange={(e) => set(imgs.map((x) => (x.id === m.id ? { ...x, caption: e.target.value } : x)))} placeholder="Título (opcional)" className="min-w-0 flex-1 rounded-lg px-2 py-1 text-xs outline-none focus:bg-paper" />
+                <IconBtn label="Antes" disabled={i === 0} onClick={() => set(moveIn(imgs, i, i - 1))}><ChevronUp className="size-4 -rotate-90" /></IconBtn>
+                <IconBtn label="Después" disabled={i === imgs.length - 1} onClick={() => set(moveIn(imgs, i, i + 1))}><ChevronDown className="size-4 -rotate-90" /></IconBtn>
+                <IconBtn label="Quitar" danger onClick={() => set(imgs.filter((x) => x.id !== m.id))}><Trash2 className="size-4" /></IconBtn>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" onClick={picker.open} disabled={picker.busy} className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-line py-6 text-sm font-medium text-ink-3 hover:border-brand hover:text-brand">
+        {picker.busy ? <Loader2 className="size-5 animate-spin" /> : <Upload className="size-5" />}
+        {picker.busy ? "Subiendo fotos…" : imgs.length ? "Agregar más fotos" : "Subir fotos del menú (podés elegir varias)"}
+      </button>
+      {imgs.length > 0 && <Button variant="ghost" icon={<Images className="size-4" />} onClick={onShowPreview}>Ver en la vista previa</Button>}
+    </div>
   );
 }

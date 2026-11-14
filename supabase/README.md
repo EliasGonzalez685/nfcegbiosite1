@@ -23,9 +23,12 @@ El rol se guarda en `profiles.role` y **solo lo puede cambiar un admin**. Quien 
 | `menus` | Configuración del menú de cada negocio: activo, **modo** (`items` editable, `pdf`, `images` fotos), PDF, WhatsApp de pedidos. |
 | `menu_categories` / `menu_items` | Menú editable: categorías y productos con foto, precio en Gs. y agotado. |
 | `menu_images` | Menú en fotos (fotos de la carta, pizarra…), en orden. |
-| `qr_codes` | **QR dinámicos**: código fijo impreso (`/q/CODIGO`) cuyo destino se cambia cuando quieran: un negocio, su menú o cualquier enlace. |
+| `qr_codes` | **Plaquitas NFC/QR**: código fijo (`/q/CODIGO`), tipo (NFC + QR, solo QR, solo NFC) y destino editable: negocio, menú, WiFi, fidelidad o cualquier enlace. |
 | `qr_scans` | Cada escaneo de cada QR (fecha y dispositivo). |
 | `leads` | Prospectos (posibles clientes) que cargan los vendedores, con estado y próximo contacto. |
+| `loyalty_programs` | Programa de fidelidad de cada negocio: premio, sellos necesarios, espera entre sellos, PIN de canje. |
+| `loyalty_cards` | Tarjeta de cada cliente final (nombre, WhatsApp, sellos, premios canjeados). |
+| `loyalty_events` | Cada sello, canje o ajuste manual. |
 | `activity_log` | Registro automático de todo lo que hace cada usuario (quién, qué, cuándo, antes/después). Lo ven los admins. |
 
 ## Archivos (Storage)
@@ -37,17 +40,13 @@ Ruta obligatoria: `<id-del-negocio>/<archivo>`. Solo pueden subir el admin, el d
 
 ## Funciones
 
-- `resolve_qr(code)` — pública. La usa la página `/q/CODIGO`: devuelve a dónde redirigir y suma el escaneo.
-- Edge Function `create-user` — `POST /functions/v1/create-user` con la sesión del admin o vendedor:
-  ```json
-  { "email": "...", "password": "...", "full_name": "...", "role": "seller | client | admin",
-    "business": { "name": "Lo de Julio", "slug": "lo-de-julio" } }
-  ```
+- `resolve_qr(code)` — pública. La usa `/q/CODIGO`: devuelve a dónde redirigir y suma el escaneo.
+- `loyalty_info`, `loyalty_join`, `loyalty_stamp`, `loyalty_redeem` — públicas. Las usa la tarjeta de fidelidad `/f/CODIGO`.
+- Edge Function `users` — `POST /functions/v1/users` con la sesión del usuario:
+  - `{ "action": "create", "email", "password", "full_name", "role", "business"?: { "name", "slug" } }` → admin crea cualquier rol; vendedor solo clientes.
+  - `{ "action": "update", "user_id", "email"?, "password"?, "full_name"?, "phone"?, "role"?, "status"?, "current_password"? }` → cada uno edita su cuenta (con su contraseña actual); el admin edita a cualquiera; el vendedor, a sus clientes.
+- La función antigua `create-user` quedó reemplazada por `users`; se puede borrar desde el panel de Supabase (Edge Functions).
 
-## Crear los dos administradores
+## Administradores
 
-1. Cada uno se registra en la web (queda como cliente).
-2. Un admin existente (o el SQL Editor de Supabase) lo promueve:
-   ```sql
-   update public.profiles set role = 'admin' where email = 'correo@ejemplo.com';
-   ```
+`admin1@nfcegbiosite.com` y `admin2@nfcegbiosite.com` (rol `admin`). Para crear más: desde el panel (Usuarios → Nuevo usuario → Admin).

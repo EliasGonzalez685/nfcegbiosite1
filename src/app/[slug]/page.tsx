@@ -1,27 +1,37 @@
 "use client";
 
-import { useEffect } from "react";
-import { useParams } from "next/navigation";
-import { db } from "@/lib/data";
+import { Suspense, useEffect } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { getSiteBySlug } from "@/lib/api";
 import { useAsync } from "@/lib/hooks";
 import { BiositeView } from "@/components/biosite/biosite-view";
 import { NotFoundCard } from "@/components/biosite/not-found";
 import { PageLoader } from "@/components/ui";
 
-export default function BiositePage() {
+function Page() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: profile, loading } = useAsync(() => db.profiles.getBySlug(slug), [slug]);
+  const openWifi = useSearchParams().get("wifi") === "1";
+  const { data: site, loading, error } = useAsync(() => getSiteBySlug(slug), [slug]);
 
   useEffect(() => {
-    if (profile) document.title = profile.name;
-  }, [profile]);
+    if (site) document.title = site.name;
+  }, [site]);
 
   if (loading) return <div className="min-h-dvh bg-[#0c0c0d]"><PageLoader /></div>;
-  if (!profile || !profile.published) return <NotFoundCard />;
+  if (error) return <NotFoundCard title="No pudimos cargar la página" text="Revisá tu conexión e intentá de nuevo." />;
+  if (!site || !site.published) return <NotFoundCard />;
 
   return (
     <main className="flex min-h-dvh flex-col bg-[#0c0c0d]">
-      <BiositeView profile={profile} />
+      <BiositeView profile={site} openWifi={openWifi} />
     </main>
+  );
+}
+
+export default function BiositePage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-[#0c0c0d]" />}>
+      <Page />
+    </Suspense>
   );
 }

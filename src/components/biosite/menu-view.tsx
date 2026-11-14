@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Minus, Plus, Search, X } from "lucide-react";
-import type { MenuItem, Profile } from "@/lib/types";
+import type { MenuItem, Site } from "@/lib/types";
 import { cn, formatGs } from "@/lib/utils";
 import { whatsappHref } from "@/lib/links";
 import { visibleCategories } from "@/lib/menu";
@@ -11,7 +11,7 @@ import { themeVars } from "./biosite-view";
 import { LinkIcon } from "./link-icon";
 
 
-function buildOrderMessage(p: Profile, lines: { item: MenuItem; qty: number }[], extra: { name: string; mode: string; table: string; note: string }) {
+function buildOrderMessage(p: Site, lines: { item: MenuItem; qty: number }[], extra: { name: string; mode: string; table: string; note: string }) {
   const total = lines.reduce((s, l) => s + l.item.price * l.qty, 0);
   const out = [`¡Hola ${p.name}! Quiero hacer este pedido:`, ""];
   for (const l of lines) out.push(`• ${l.qty} x ${l.item.name} — ${formatGs(l.item.price * l.qty)}`);
@@ -21,7 +21,7 @@ function buildOrderMessage(p: Profile, lines: { item: MenuItem; qty: number }[],
   return out.join("\n");
 }
 
-export function MenuView({ profile: p, preview = false, onBack }: { profile: Profile; preview?: boolean; onBack?: () => void }) {
+export function MenuView({ profile: p, preview = false, onBack }: { profile: Site; preview?: boolean; onBack?: () => void }) {
   const categories = visibleCategories(p);
   const allItems = useMemo(() => categories.flatMap((c) => c.items), [categories]);
   const canOrder = !!p.menu.orderWhatsapp.trim();
@@ -220,4 +220,106 @@ export function MenuView({ profile: p, preview = false, onBack }: { profile: Pro
       )}
     </div>
   );
+}
+
+function MenuHeader({ p, onBack, subtitle = "Menú" }: { p: Site; onBack?: () => void; subtitle?: string }) {
+  const cls = "grid size-10 place-items-center rounded-full border border-white/15 bg-white/5";
+  return (
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0c0c0d]/90 backdrop-blur">
+      <div className="flex items-center gap-3 px-4 py-4">
+        {onBack ? (
+          <button onClick={onBack} className={cls} aria-label="Volver"><ArrowLeft className="size-4" /></button>
+        ) : (
+          <Link href={`/${p.slug}`} className={cls} aria-label="Volver"><ArrowLeft className="size-4" /></Link>
+        )}
+        <div className="size-10 shrink-0 overflow-hidden rounded-full border border-[var(--accent-l)] bg-[#141415]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {p.avatarUrl && <img src={p.avatarUrl} alt="" className="size-full object-cover" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-display text-lg font-bold leading-tight">{p.name}</p>
+          <p className="text-xs uppercase tracking-[.2em] text-[var(--accent-l)]">{subtitle}</p>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/** Menú en PDF: se ve embebido y se puede abrir o descargar */
+function MenuPdf({ p, preview, onBack }: { p: Site; preview: boolean; onBack?: () => void }) {
+  const url = p.menu.pdfUrl!;
+  return (
+    <div style={themeVars(p.accent)} className="relative flex min-h-full flex-1 flex-col text-white">
+      <div className="mx-auto flex w-full max-w-[760px] flex-1 flex-col">
+        <MenuHeader p={p} onBack={onBack} />
+        <div className="flex-1 p-3">
+          {preview ? (
+            <div className="grid h-full min-h-[380px] place-items-center rounded-3xl border border-dashed border-white/15 p-6 text-center text-sm text-white/60">
+              <div>
+                <p className="text-4xl">📄</p>
+                <p className="mt-2">Tu menú en PDF se muestra acá a pantalla completa.</p>
+              </div>
+            </div>
+          ) : (
+            <iframe src={`${url}#toolbar=0&view=FitH`} title="Menú" className="h-[calc(100dvh-170px)] w-full rounded-2xl bg-white" />
+          )}
+        </div>
+        <div className="sticky bottom-0 grid grid-cols-2 gap-2 bg-[#0c0c0d]/90 p-3 backdrop-blur">
+          <a href={preview ? undefined : url} target="_blank" rel="noopener" className="flex h-12 items-center justify-center rounded-full font-semibold text-black" style={{ background: "var(--accent-l)" }}>
+            Abrir PDF
+          </a>
+          <a href={preview ? undefined : url} download className="flex h-12 items-center justify-center rounded-full border border-white/15 font-semibold">
+            Descargar
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Menú en fotos: tarjetas grandes, tocar para ampliar */
+function MenuImages({ p, onBack }: { p: Site; onBack?: () => void }) {
+  const [zoom, setZoom] = useState<number | null>(null);
+  const imgs = p.menu.images;
+  return (
+    <div style={themeVars(p.accent)} className="relative flex min-h-full flex-1 flex-col text-white">
+      <div className="mx-auto w-full max-w-[640px] pb-10">
+        <MenuHeader p={p} onBack={onBack} subtitle={`Menú · ${imgs.length} ${imgs.length === 1 ? "foto" : "fotos"}`} />
+        <ul className="space-y-4 p-4">
+          {imgs.map((m, i) => (
+            <li key={m.id}>
+              <button onClick={() => setZoom(i)} className="block w-full overflow-hidden rounded-3xl border border-white/10 bg-white/5 text-left">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={m.url} alt={m.caption || `Página ${i + 1} del menú`} className="w-full" loading={i > 1 ? "lazy" : "eager"} />
+                {m.caption && <p className="px-4 py-3 text-sm text-white/70">{m.caption}</p>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {zoom !== null && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/95" onClick={() => setZoom(null)}>
+          <div className="flex items-center justify-between p-4 text-sm text-white/70">
+            <span>{zoom + 1} / {imgs.length}</span>
+            <button className="grid size-10 place-items-center rounded-full bg-white/10" aria-label="Cerrar"><X className="size-5" /></button>
+          </div>
+          <div className="flex-1 overflow-auto px-2 pb-6" onClick={(e) => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imgs[zoom].url} alt="" className="mx-auto max-w-none sm:max-w-full" style={{ width: "min(1400px, 200%)" }} />
+          </div>
+          <div className="grid grid-cols-2 gap-2 p-3" onClick={(e) => e.stopPropagation()}>
+            <button disabled={zoom === 0} onClick={() => setZoom(zoom - 1)} className="h-12 rounded-full bg-white/10 font-semibold disabled:opacity-30">Anterior</button>
+            <button disabled={zoom === imgs.length - 1} onClick={() => setZoom(zoom + 1)} className="h-12 rounded-full bg-white/10 font-semibold disabled:opacity-30">Siguiente</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Elige la vista del menú según el modo que eligió el negocio */
+export function MenuScreen({ profile, preview = false, onBack }: { profile: Site; preview?: boolean; onBack?: () => void }) {
+  if (profile.menu.mode === "pdf" && profile.menu.pdfUrl) return <MenuPdf p={profile} preview={preview} onBack={onBack} />;
+  if (profile.menu.mode === "images" && profile.menu.images.length) return <MenuImages p={profile} onBack={onBack} />;
+  return <MenuView profile={profile} preview={preview} onBack={onBack} />;
 }

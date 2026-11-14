@@ -1,4 +1,4 @@
-import type { LinkType, Profile, ProfileLink } from "@/lib/types";
+import type { LinkType, Site, ProfileLink } from "@/lib/types";
 
 export const LINK_TYPES: { type: LinkType; label: string; placeholder: string; field: string; hint?: string }[] = [
   { type: "whatsapp", label: "WhatsApp", placeholder: "595981123456", field: "Número", hint: "Con código de país, sin + ni espacios" },
@@ -59,7 +59,7 @@ export function wifiQrString(ssid: string, password = "") {
 }
 
 /** vCard armada con los datos de los botones del perfil (WhatsApp, teléfono, email, web, ubicación) */
-export function buildVCard(p: Profile, pageUrl: string) {
+export function buildVCard(p: Site, pageUrl: string) {
   const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/([,;])/g, "\\$1");
   const on = p.links.filter((l) => l.enabled && l.value.trim());
   const lines = ["BEGIN:VCARD", "VERSION:3.0", `N:;${esc(p.name)};;;`, `FN:${esc(p.name)}`, `ORG:${esc(p.name)}`];

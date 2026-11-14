@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, ChevronRight, Copy, UtensilsCrossed, X } from "lucide-react";
-import type { Profile, ProfileLink } from "@/lib/types";
+import type { Site, ProfileLink } from "@/lib/types";
 import { buildVCard, isAction, isComplete, linkHref, wifiQrString } from "@/lib/links";
 import { cn, downloadBlob, profileUrl, slugify } from "@/lib/utils";
 import { useCopy } from "@/lib/hooks";
@@ -23,9 +23,20 @@ export function themeVars(accent: string) {
   } as React.CSSProperties;
 }
 
-export function BiositeView({ profile: p, preview = false, onOpenMenu }: { profile: Profile; preview?: boolean; onOpenMenu?: () => void }) {
+export function BiositeView({
+  profile: p,
+  preview = false,
+  onOpenMenu,
+  openWifi = false,
+}: {
+  profile: Site;
+  preview?: boolean;
+  onOpenMenu?: () => void;
+  /** Abre directo la tarjeta del WiFi (cuando se llega desde una plaquita de WiFi) */
+  openWifi?: boolean;
+}) {
   const links = p.links.filter(isComplete);
-  const [wifi, setWifi] = useState<ProfileLink | null>(null);
+  const [wifi, setWifi] = useState<ProfileLink | null>(() => (openWifi ? links.find((l) => l.type === "wifi") ?? null : null));
 
   function onAction(l: ProfileLink) {
     if (l.type === "wifi") setWifi(l);

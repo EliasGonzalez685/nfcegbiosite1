@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { MailCheck } from "lucide-react";
-import { auth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 import { Button, Field, Input } from "@/components/ui";
 
 export default function RecoverPage() {
@@ -14,7 +14,7 @@ export default function RecoverPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    await auth.requestPasswordReset(email);
+    await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/restablecer` });
     setBusy(false);
     setSent(true);
   }
@@ -25,6 +25,7 @@ export default function RecoverPage() {
         <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-brand-soft text-brand"><MailCheck className="size-8" /></div>
         <h1 className="mt-5 font-display text-2xl font-bold">Revisá tu correo</h1>
         <p className="mt-2 text-ink-3">Si existe una cuenta con <b className="text-ink">{email}</b>, te enviamos un enlace para crear una contraseña nueva.</p>
+        <p className="mt-4 text-sm text-ink-3">¿No te llega? Un administrador puede cambiarte la contraseña desde el panel.</p>
         <Link href="/ingresar" className="mt-8 inline-block text-sm font-medium text-brand hover:underline">Volver a iniciar sesión</Link>
       </div>
     );
@@ -32,7 +33,7 @@ export default function RecoverPage() {
   return (
     <>
       <h1 className="font-display text-3xl font-bold">Recuperar contraseña</h1>
-      <p className="mt-1.5 text-ink-3">Te enviamos un enlace para restablecerla.</p>
+      <p className="mt-1.5 text-ink-3">Te enviamos un enlace a tu correo para crear una nueva.</p>
       <form onSubmit={submit} className="mt-8 space-y-4">
         <Field label="Email de tu cuenta">
           <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />

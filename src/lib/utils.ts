@@ -29,8 +29,8 @@ export function slugify(input: string) {
     .slice(0, 40);
 }
 
-export function uid(prefix = "") {
-  return prefix + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+export function uid() {
+  return crypto.randomUUID();
 }
 
 export function formatDate(iso: string | null | undefined, withTime = false) {
