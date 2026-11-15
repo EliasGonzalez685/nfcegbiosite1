@@ -329,6 +329,18 @@ export async function createPlaque(p: PlaqueInput) {
   return toPlaque(check(await supabase.from("qr_codes").insert(plaqueRow(p)).select("*, business:businesses(id, name, slug)").single()));
 }
 
+/** Lote de plaquitas en blanco (sin destino) para imprimir y grabar antes de vender */
+export async function createBlankPlaques(n: number, kind: DeviceKind, labelPrefix: string, businessId: string | null) {
+  const rows = Array.from({ length: n }, (_, i) => ({
+    label: n > 1 ? `${labelPrefix} ${i + 1}`.trim() : labelPrefix,
+    kind,
+    target_type: "none",
+    business_id: businessId,
+    active: true,
+  }));
+  return check(await supabase.from("qr_codes").insert(rows).select("*, business:businesses(id, name, slug)")).map(toPlaque);
+}
+
 export async function updatePlaque(id: string, p: PlaqueInput) {
   return toPlaque(check(await supabase.from("qr_codes").update(plaqueRow(p)).eq("id", id).select("*, business:businesses(id, name, slug)").single()));
 }

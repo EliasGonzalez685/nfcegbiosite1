@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Check, Copy, Download, ExternalLink, Gift, Globe, MapPin, Nfc, Pencil, Plus, QrCode,
-  ScanLine, Search, Star, Store, Trash2, UtensilsCrossed, Wifi,
+  Check, CircleDashed, Copy, Download, ExternalLink, Gift, Globe, Layers, Lock, MapPin, Nfc, Palette, Pencil, Plus, QrCode,
+  ScanLine, Search, SkipForward, Square, SquareCheck, Star, Store, Trash2, UtensilsCrossed, Wifi, X,
 } from "lucide-react";
 import type { BusinessRow, DeviceKind, Plaque, PlaqueTarget } from "@/lib/types";
-import { createPlaque, deletePlaque, listPlaques, updatePlaque, type PlaqueInput } from "@/lib/api";
+import { createBlankPlaques, createPlaque, deletePlaque, listPlaques, updatePlaque, type PlaqueInput } from "@/lib/api";
 import { friendlyError } from "@/lib/supabase";
 import { whatsappHref } from "@/lib/links";
 import { cn, getBaseUrl, relativeTime } from "@/lib/utils";
@@ -15,6 +15,7 @@ import { useToast } from "@/components/ui/toast";
 import { Badge, Button, EmptyState, Field, Input, Modal, PageLoader, Select, Textarea, Toggle } from "@/components/ui";
 import { QrDownloads, QrImage } from "@/components/panel/qr-tools";
 import { LinkIcon } from "@/components/biosite/link-icon";
+import { PlaqueDesigner } from "@/components/plaque-designer";
 
 export const plaqueUrl = (code: string) => `${getBaseUrl()}/q/${code}`;
 
@@ -28,7 +29,7 @@ const IgIcon = ({ className }: { className?: string }) => <LinkIcon type="instag
 const WaIcon = ({ className }: { className?: string }) => <LinkIcon type="whatsapp" className={className} />;
 
 /** Destinos que se eligen al configurar una plaquita */
-type Preset = "business" | "menu" | "wifi" | "loyalty" | "whatsapp" | "instagram" | "review" | "maps" | "url";
+type Preset = "none" | "business" | "menu" | "wifi" | "loyalty" | "whatsapp" | "instagram" | "review" | "maps" | "url";
 const PRESETS: { id: Preset; label: string; icon: React.ComponentType<{ className?: string }>; needsBusiness: boolean }[] = [
   { id: "business", label: "Página del negocio", icon: Store, needsBusiness: true },
   { id: "menu", label: "Menú", icon: UtensilsCrossed, needsBusiness: true },
@@ -39,6 +40,7 @@ const PRESETS: { id: Preset; label: string; icon: React.ComponentType<{ classNam
   { id: "review", label: "Reseña en Google", icon: Star, needsBusiness: false },
   { id: "maps", label: "Ubicación", icon: MapPin, needsBusiness: false },
   { id: "url", label: "Otro enlace", icon: Globe, needsBusiness: false },
+  { id: "none", label: "Sin destino (después)", icon: CircleDashed, needsBusiness: false },
 ];
 
 function presetOf(p: Pick<Plaque, "targetType" | "targetUrl">): Preset {
@@ -58,6 +60,7 @@ export function describeTarget(p: Plaque) {
     case "menu": return `Menú de ${biz}`;
     case "wifi": return `WiFi de ${biz}`;
     case "loyalty": return `Fidelización de ${biz}`;
+    case "none": return "Sin destino todavía";
     default: return (p.targetUrl ?? "").replace(/^https?:\/\/(www\.)?/, "");
   }
 }
@@ -75,6 +78,7 @@ export function PlaqueManager({
   canEdit,
   canDelete = false,
   startCreating = false,
+  configCode,
 }: {
   /** Si se pasa, muestra solo las plaquitas de ese negocio y las nuevas quedan asociadas a él */
   businessId?: string;
@@ -83,19 +87,49 @@ export function PlaqueManager({
   canDelete?: boolean;
   /** Abre directamente el formulario de nueva plaquita */
   startCreating?: boolean;
+  /** Abre la configuración de la plaquita con este código (al escanear una sin destino) */
+  configCode?: string | null;
 }) {
   const toast = useToast();
   const { data, setData, loading, reload } = useAsync(() => listPlaques(businessId), [businessId]);
   const [editing, setEditing] = useState<Plaque | "new" | null>(startCreating && canEdit ? "new" : null);
-  const [nfcFor, setNfcFor] = useState<Plaque | null>(null);
+  const [nfcQueue, setNfcQueue] = useState<Plaque[] | null>(null);
   const [qrFor, setQrFor] = useState<Plaque | null>(null);
+  const [designFor, setDesignFor] = useState<Plaque[] | null>(null);
+  const [batchOpen, setBatchOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | "none">("all");
   const [readerOpen, setReaderOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const openedConfig = useRef(false);
 
+  // llegó escaneando una plaquita sin destino → abrir su configuración
+  useEffect(() => {
+    if (!configCode || !data || openedConfig.current || !canEdit) return;
+    openedConfig.current = true;
+    const p = data.find((x) => x.code === configCode.toUpperCase());
+    if (p) setTimeout(() => setEditing(p), 0);
+    else setTimeout(() => toast.error(`No encontramos la plaquita ${configCode} entre las tuyas`), 0);
+  }, [configCode, data, canEdit, toast]);
+
+  const blanks = (data ?? []).filter((p) => p.targetType === "none").length;
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return (data ?? []).filter((p) => !s || p.code.toLowerCase().includes(s) || p.label.toLowerCase().includes(s) || describeTarget(p).toLowerCase().includes(s));
-  }, [data, q]);
+    return (data ?? []).filter(
+      (p) =>
+        (filter === "all" || p.targetType === "none") &&
+        (!s || p.code.toLowerCase().includes(s) || p.label.toLowerCase().includes(s) || describeTarget(p).toLowerCase().includes(s)),
+    );
+  }, [data, q, filter]);
+  const chosen = (data ?? []).filter((p) => selected.has(p.id));
+
+  const toggleSel = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   async function toggleActive(p: Plaque) {
     try {
@@ -128,60 +162,96 @@ export function PlaqueManager({
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por código, nombre o destino" className="h-10 flex-1 bg-transparent text-sm outline-none" />
           </div>
         )}
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap gap-2">
           {canEdit && <Button variant="secondary" icon={<ScanLine className="size-4" />} onClick={() => setReaderOpen(true)}>Leer plaquita</Button>}
+          {canEdit && <Button variant="secondary" icon={<Layers className="size-4" />} onClick={() => setBatchOpen(true)}>Crear lote</Button>}
           {canEdit && <Button icon={<Plus className="size-4" />} onClick={() => setEditing("new")}>Nueva plaquita</Button>}
         </div>
       </div>
 
+      {(data?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <div className="flex gap-1 rounded-xl bg-white p-1 ring-1 ring-line">
+            <button onClick={() => setFilter("all")} className={cn("rounded-lg px-3 py-1.5 font-medium", filter === "all" ? "bg-ink text-white" : "text-ink-2")}>Todas ({data?.length})</button>
+            <button onClick={() => setFilter("none")} className={cn("rounded-lg px-3 py-1.5 font-medium", filter === "none" ? "bg-ink text-white" : "text-ink-2")}>Sin destino ({blanks})</button>
+          </div>
+          <button onClick={() => setSelected(selected.size === list.length ? new Set() : new Set(list.map((p) => p.id)))} className="rounded-lg px-2 py-1.5 font-medium text-brand hover:bg-brand-soft">
+            {selected.size === list.length && list.length ? "Quitar selección" : "Seleccionar todas"}
+          </button>
+        </div>
+      )}
+
+      {/* Acciones en grupo */}
+      {chosen.length > 0 && (
+        <div className="animate-rise sticky top-[60px] z-10 flex flex-wrap items-center gap-2 rounded-2xl bg-ink p-2 pl-4 text-white shadow-xl lg:top-3">
+          <span className="text-sm font-semibold">{chosen.length} seleccionada{chosen.length > 1 ? "s" : ""}</span>
+          <div className="ml-auto flex flex-wrap gap-1.5">
+            <Button size="sm" variant="clay" icon={<Palette className="size-4" />} onClick={() => setDesignFor(chosen)}>Diseñar e imprimir</Button>
+            {canEdit && <Button size="sm" variant="secondary" icon={<Nfc className="size-4" />} onClick={() => setNfcQueue(chosen.filter((p) => p.kind !== "qr"))} disabled={!chosen.some((p) => p.kind !== "qr")}>Grabar NFC en serie</Button>}
+            <button onClick={() => setSelected(new Set())} className="grid size-8 place-items-center rounded-lg text-white/70 hover:bg-white/10" aria-label="Limpiar selección"><X className="size-4" /></button>
+          </div>
+        </div>
+      )}
+
       {!list.length ? (
         <EmptyState
           icon={<Nfc className="size-6" />}
-          title={q ? "Sin resultados" : "Todavía no hay plaquitas"}
-          description={canEdit ? "Cada plaquita tiene un código fijo que se graba en el chip NFC y se imprime como QR. Su destino lo cambiás cuando quieras." : "Cuando tu vendedor configure tus plaquitas NFC o QR, las vas a ver acá."}
-          action={canEdit && !q ? <Button onClick={() => setEditing("new")}>Crear la primera</Button> : undefined}
+          title={q || filter === "none" ? "Sin resultados" : "Todavía no hay plaquitas"}
+          description={canEdit ? "Creá un lote en blanco para imprimir y grabar, y asignale el destino cuando la vendas. O creá una ya configurada." : "Cuando tu vendedor configure tus plaquitas NFC o QR, las vas a ver acá."}
+          action={canEdit && !q ? <Button onClick={() => setBatchOpen(true)}>Crear lote en blanco</Button> : undefined}
         />
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
-          {list.map((p) => (
-            <li key={p.id} className={cn("card group flex flex-col p-4 transition hover:shadow-md", !p.active && "bg-white/60")}>
-              <div className="flex items-start gap-3">
-                <button onClick={() => setQrFor(p)} className="shrink-0 rounded-xl border border-line p-1 transition hover:border-ink-3" title="Ver QR">
-                  <QrImage text={plaqueUrl(p.code)} size={160} className="size-16" />
+          {list.map((p) => {
+            const sel = selected.has(p.id);
+            return (
+              <li key={p.id} className={cn("card group relative flex flex-col p-4 transition hover:shadow-md", !p.active && "bg-white/60", sel && "ring-2 ring-brand")}>
+                <button onClick={() => toggleSel(p.id)} className={cn("absolute right-3 top-3 grid size-8 place-items-center rounded-lg transition", sel ? "text-brand" : "text-ink-3 opacity-60 hover:opacity-100")} aria-label="Seleccionar">
+                  {sel ? <SquareCheck className="size-5" /> : <Square className="size-5" />}
                 </button>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="font-mono text-lg font-bold tracking-[.15em]">{p.code}</p>
-                    <Badge tone={p.active ? "ok" : "neutral"}>{p.active ? "Activa" : "Pausada"}</Badge>
+                <div className="flex items-start gap-3 pr-8">
+                  <button onClick={() => setQrFor(p)} className="shrink-0 rounded-xl border border-line p-1 transition hover:border-ink-3" title="Ver QR">
+                    <QrImage text={plaqueUrl(p.code)} size={160} className="size-16" />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-mono text-lg font-bold tracking-[.15em]">{p.code}</p>
+                      {p.targetType === "none" ? <Badge tone="warn">Sin destino</Badge> : <Badge tone={p.active ? "ok" : "neutral"}>{p.active ? "Activa" : "Pausada"}</Badge>}
+                    </div>
+                    <p className="truncate text-sm font-medium">{p.label || "Sin nombre"}</p>
+                    <p className="mt-0.5 flex items-center gap-1.5 truncate text-sm text-ink-3">
+                      <TargetIcon p={p} className="size-3.5 shrink-0" /> <span className="truncate">{describeTarget(p)}</span>
+                    </p>
                   </div>
-                  <p className="truncate text-sm font-medium">{p.label || "Sin nombre"}</p>
-                  <p className="mt-0.5 flex items-center gap-1.5 truncate text-sm text-ink-3">
-                    <TargetIcon p={p} className="size-3.5 shrink-0" /> <span className="truncate">{describeTarget(p)}</span>
-                  </p>
                 </div>
-              </div>
-              <div className="mt-3 flex items-center gap-3 text-xs text-ink-3">
-                <span className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-0.5 font-medium text-ink-2">
-                  {p.kind !== "qr" && <Nfc className="size-3" />}{p.kind !== "nfc" && <QrCode className="size-3" />} {KIND[p.kind].short}
-                </span>
-                <span>{p.scans} {p.scans === 1 ? "escaneo" : "escaneos"}</span>
-                {p.lastScanAt && <span>· último {relativeTime(p.lastScanAt)}</span>}
-              </div>
-              <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3">
-                {canEdit && <Button size="sm" variant="secondary" icon={<Pencil className="size-3.5" />} onClick={() => setEditing(p)}>Configurar</Button>}
-                {canEdit && p.kind !== "qr" && <Button size="sm" variant="secondary" icon={<Nfc className="size-3.5" />} onClick={() => setNfcFor(p)}>Grabar NFC</Button>}
-                <Button size="sm" variant="ghost" icon={<Download className="size-3.5" />} onClick={() => setQrFor(p)}>QR</Button>
-                <div className="ml-auto flex items-center gap-1">
-                  {canEdit && <Toggle checked={p.active} onChange={() => toggleActive(p)} />}
-                  {canDelete && (
-                    <button onClick={() => remove(p)} className="grid size-8 place-items-center rounded-lg text-ink-3 hover:bg-red-50 hover:text-danger" aria-label="Eliminar">
-                      <Trash2 className="size-4" />
-                    </button>
+                <div className="mt-3 flex items-center gap-3 text-xs text-ink-3">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-paper px-2 py-0.5 font-medium text-ink-2">
+                    {p.kind !== "qr" && <Nfc className="size-3" />}{p.kind !== "nfc" && <QrCode className="size-3" />} {KIND[p.kind].short}
+                  </span>
+                  <span>{p.scans} {p.scans === 1 ? "escaneo" : "escaneos"}</span>
+                  {p.lastScanAt && <span>· último {relativeTime(p.lastScanAt)}</span>}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-1.5 border-t border-line pt-3">
+                  {canEdit && (
+                    <Button size="sm" variant={p.targetType === "none" ? "primary" : "secondary"} icon={<Pencil className="size-3.5" />} onClick={() => setEditing(p)}>
+                      {p.targetType === "none" ? "Asignar destino" : "Configurar"}
+                    </Button>
                   )}
+                  {canEdit && p.kind !== "qr" && <Button size="sm" variant="secondary" icon={<Nfc className="size-3.5" />} onClick={() => setNfcQueue([p])}>Grabar NFC</Button>}
+                  <Button size="sm" variant="ghost" icon={<Palette className="size-3.5" />} onClick={() => setDesignFor([p])}>Diseño</Button>
+                  <Button size="sm" variant="ghost" icon={<Download className="size-3.5" />} onClick={() => setQrFor(p)}>QR</Button>
+                  <div className="ml-auto flex items-center gap-1">
+                    {canEdit && <Toggle checked={p.active} onChange={() => toggleActive(p)} />}
+                    {canDelete && (
+                      <button onClick={() => remove(p)} className="grid size-8 place-items-center rounded-lg text-ink-3 hover:bg-red-50 hover:text-danger" aria-label="Eliminar">
+                        <Trash2 className="size-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -194,14 +264,98 @@ export function PlaqueManager({
           onSaved={(p, isNew) => {
             setData((l) => (isNew ? [p, ...(l ?? [])] : l?.map((x) => (x.id === p.id ? p : x)) ?? [p]));
             setEditing(null);
-            if (isNew && p.kind !== "qr") setNfcFor(p);
+            if (isNew && p.kind !== "qr") setNfcQueue([p]);
           }}
         />
       )}
-      {nfcFor && <NfcWriter plaque={nfcFor} onClose={() => setNfcFor(null)} />}
+      {batchOpen && (
+        <BatchModal
+          fixedBusinessId={businessId}
+          businesses={businesses}
+          onClose={() => setBatchOpen(false)}
+          onCreated={(created) => {
+            setData((l) => [...created, ...(l ?? [])]);
+            setSelected(new Set(created.map((p) => p.id)));
+            setBatchOpen(false);
+            setDesignFor(created);
+          }}
+        />
+      )}
+      {nfcQueue && nfcQueue.length > 0 && <NfcWriter plaques={nfcQueue} onClose={() => setNfcQueue(null)} />}
       {qrFor && <QrModal plaque={qrFor} onClose={() => setQrFor(null)} />}
+      {designFor && <PlaqueDesigner plaques={designFor} onClose={() => setDesignFor(null)} />}
       {readerOpen && <NfcReader plaques={data ?? []} onClose={() => setReaderOpen(false)} onOpen={(p) => { setReaderOpen(false); setEditing(p); }} onReload={reload} />}
     </div>
+  );
+}
+
+// ───────────────────────────── Lote en blanco ─────────────────────────────
+
+function BatchModal({
+  fixedBusinessId,
+  businesses,
+  onClose,
+  onCreated,
+}: {
+  fixedBusinessId?: string;
+  businesses?: BusinessRow[];
+  onClose: () => void;
+  onCreated: (p: Plaque[]) => void;
+}) {
+  const toast = useToast();
+  const [n, setN] = useState(10);
+  const [kind, setKind] = useState<DeviceKind>("nfc_qr");
+  const [prefix, setPrefix] = useState("Plaquita");
+  const [businessId, setBusinessId] = useState(fixedBusinessId ?? "");
+  const [busy, setBusy] = useState(false);
+
+  async function create() {
+    if (n < 1 || n > 200) return toast.error("Elegí entre 1 y 200 plaquitas");
+    setBusy(true);
+    try {
+      const created = await createBlankPlaques(n, kind, prefix.trim(), businessId || null);
+      toast.success(`${created.length} plaquitas creadas. Ahora elegí el diseño para imprimirlas`);
+      onCreated(created);
+    } catch (e) {
+      toast.error(friendlyError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Crear lote de plaquitas en blanco"
+      footer={<><Button variant="secondary" onClick={onClose}>Cancelar</Button><Button loading={busy} onClick={create}>Crear {n} plaquitas</Button></>}
+    >
+      <div className="space-y-4">
+        <p className="rounded-xl bg-brand-soft/60 px-3 py-2.5 text-sm text-ink-2">
+          Cada una recibe su código y su QR. Las imprimís y grabás ahora, y cuando la vendés le asignás el destino: <b>escaneala con tu sesión iniciada</b> y se abre directo su configuración.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Cantidad"><Input type="number" min={1} max={200} value={n} onChange={(e) => setN(Number(e.target.value) || 0)} /></Field>
+          <Field label="Nombre base" hint={`Quedan como “${prefix || "Plaquita"} 1”, “${prefix || "Plaquita"} 2”…`}><Input value={prefix} onChange={(e) => setPrefix(e.target.value)} /></Field>
+        </div>
+        <div>
+          <p className="label">Tipo</p>
+          <div className="grid grid-cols-3 gap-1 rounded-xl bg-paper-2 p-1">
+            {(Object.keys(KIND) as DeviceKind[]).map((k) => (
+              <button key={k} type="button" onClick={() => setKind(k)} className={cn("rounded-lg py-2 text-xs font-semibold", kind === k ? "bg-white shadow-sm" : "text-ink-3")}>{KIND[k].label}</button>
+            ))}
+          </div>
+        </div>
+        {!fixedBusinessId && businesses && businesses.length > 0 && (
+          <Field label="Negocio (opcional)" hint="Si ya sabés para quién son.">
+            <Select value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
+              <option value="">Sin negocio todavía</option>
+              {businesses.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </Select>
+          </Field>
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -221,7 +375,7 @@ function PlaqueForm({
   onSaved: (p: Plaque, isNew: boolean) => void;
 }) {
   const toast = useToast();
-  const initialPreset = plaque ? presetOf(plaque) : fixedBusinessId ? "business" : "business";
+  const initialPreset: Preset = plaque && presetOf(plaque) !== "none" ? presetOf(plaque) : "business";
   const [preset, setPreset] = useState<Preset>(initialPreset);
   const [label, setLabel] = useState(plaque?.label ?? "");
   const [kind, setKind] = useState<DeviceKind>(plaque?.kind ?? "nfc_qr");
@@ -243,7 +397,9 @@ function PlaqueForm({
   function buildInput(): PlaqueInput | string {
     let targetType: PlaqueTarget = "url";
     let targetUrl: string | null = null;
-    if (needsBusiness) {
+    if (preset === "none") {
+      targetType = "none";
+    } else if (needsBusiness) {
       if (!businessId) return "Elegí el negocio";
       targetType = preset as PlaqueTarget;
     } else if (preset === "whatsapp") {
@@ -414,6 +570,7 @@ interface NdefReaderLike {
   scan(opts?: { signal?: AbortSignal }): Promise<void>;
   onreading: ((e: { serialNumber: string; message: { records: NdefRecord[] } }) => void) | null;
   onreadingerror: (() => void) | null;
+  makeReadOnly?(opts?: { signal?: AbortSignal }): Promise<void>;
 }
 const getNdef = (): NdefReaderLike | null => {
   const W = window as unknown as { NDEFReader?: new () => NdefReaderLike };
@@ -437,55 +594,115 @@ function NfcHelp({ url }: { url: string }) {
   );
 }
 
-function NfcWriter({ plaque, onClose }: { plaque: Plaque; onClose: () => void }) {
-  const url = plaqueUrl(plaque.code);
-  const [state, setState] = useState<"idle" | "waiting" | "ok" | "error" | "unsupported">(() => (getNdef() ? "idle" : "unsupported"));
+/** Graba una o varias plaquitas seguidas: acercás una, se graba y pasa a la siguiente */
+function NfcWriter({ plaques, onClose }: { plaques: Plaque[]; onClose: () => void }) {
+  const [idx, setIdx] = useState(0);
+  const [done, setDone] = useState<Set<string>>(new Set());
+  const [lock, setLock] = useState(false);
+  const [state, setState] = useState<"idle" | "waiting" | "ok" | "error" | "unsupported" | "finished">(() => (getNdef() ? "idle" : "unsupported"));
   const [msg, setMsg] = useState("");
+  const plaque = plaques[Math.min(idx, plaques.length - 1)];
+  const url = plaqueUrl(plaque.code);
+  const serial = plaques.length > 1;
 
   useEffect(() => {
     if (state !== "waiting") return;
     const ctrl = new AbortController();
     const ndef = getNdef()!;
-    ndef
-      .write({ records: [{ recordType: "url", data: url }] }, { overwrite: true, signal: ctrl.signal })
-      .then(() => {
-        setState("ok");
-        navigator.vibrate?.(120);
-      })
-      .catch((e: Error) => {
-        if (e.name === "AbortError") return;
-        setMsg(e.name === "NotAllowedError" ? "Permiso de NFC denegado. Activalo en los ajustes del navegador." : e.message);
+    (async () => {
+      try {
+        await ndef.write({ records: [{ recordType: "url", data: url }] }, { overwrite: true, signal: ctrl.signal });
+        if (lock) {
+          if (!ndef.makeReadOnly) throw new Error("Este celular no permite bloquear la plaquita, pero quedó grabada.");
+          await ndef.makeReadOnly({ signal: ctrl.signal });
+        }
+        navigator.vibrate?.([80, 40, 80]);
+        setDone((d) => new Set(d).add(plaque.id));
+        if (idx + 1 < plaques.length) {
+          setState("ok");
+          setTimeout(() => {
+            if (ctrl.signal.aborted) return;
+            setIdx((i) => i + 1);
+            setState("waiting");
+          }, 1400);
+        } else setState(serial ? "finished" : "ok");
+      } catch (e) {
+        const err = e as Error;
+        if (err.name === "AbortError") return;
+        setMsg(err.name === "NotAllowedError" ? "Permiso de NFC denegado. Activalo en los ajustes del navegador." : err.message);
         setState("error");
-      });
+      }
+    })();
     return () => ctrl.abort();
-  }, [state, url]);
+  }, [state, url, lock, idx, plaques.length, plaque.id, serial]);
+
+  const skip = () => {
+    if (idx + 1 < plaques.length) {
+      setIdx(idx + 1);
+      if (state !== "waiting") setState("idle");
+    } else setState("finished");
+  };
 
   return (
-    <Modal open onClose={onClose} title={`Grabar NFC · ${plaque.code}`}>
+    <Modal open onClose={onClose} title={serial ? `Grabar NFC en serie · ${done.size}/${plaques.length}` : `Grabar NFC · ${plaque.code}`}>
       <div className="text-center">
+        {serial && state !== "unsupported" && (
+          <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-paper-2">
+            <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${(done.size / plaques.length) * 100}%` }} />
+          </div>
+        )}
         {state === "unsupported" ? (
           <NfcHelp url={url} />
+        ) : state === "finished" ? (
+          <div className="animate-rise py-4">
+            <div className="mx-auto grid size-20 place-items-center rounded-full bg-brand-soft text-brand"><Check className="size-10" /></div>
+            <p className="mt-4 font-display text-xl font-bold">{done.size} de {plaques.length} plaquitas grabadas</p>
+            <p className="mt-1 text-sm text-ink-3">Ya podés asignarles el destino cuando quieras, sin volver a grabarlas.</p>
+            <Button className="mt-5" onClick={onClose}>Listo</Button>
+          </div>
         ) : state === "ok" ? (
           <div className="animate-rise py-4">
             <div className="mx-auto grid size-20 place-items-center rounded-full bg-brand-soft text-brand"><Check className="size-10" /></div>
-            <p className="mt-4 font-display text-xl font-bold">¡Plaquita grabada!</p>
-            <p className="mt-1 text-sm text-ink-3">Acercá otro celular para probarla. El destino lo podés cambiar cuando quieras sin volver a grabarla.</p>
-            <Button className="mt-5" variant="secondary" onClick={() => setState("waiting")}>Grabar otra igual</Button>
+            <p className="mt-4 font-display text-xl font-bold">¡{plaque.code} grabada!</p>
+            {serial ? (
+              <p className="mt-1 text-sm text-ink-3">Sacá esa plaquita. Sigue la próxima…</p>
+            ) : (
+              <>
+                <p className="mt-1 text-sm text-ink-3">Acercá otro celular para probarla. El destino lo podés cambiar cuando quieras sin volver a grabarla.</p>
+                <Button className="mt-5" variant="secondary" onClick={() => setState("waiting")}>Grabar otra igual</Button>
+              </>
+            )}
           </div>
         ) : (
           <div className="py-2">
-            <div className={cn("relative mx-auto grid size-28 place-items-center rounded-full bg-paper-2", state === "waiting" && "text-brand")}>
+            <p className="text-xs font-semibold uppercase tracking-wider text-ink-3">{serial ? `Plaquita ${idx + 1} de ${plaques.length}` : "Plaquita"}</p>
+            <p className="font-mono text-3xl font-bold tracking-[.2em]">{plaque.code}</p>
+            <div className={cn("relative mx-auto mt-4 grid size-28 place-items-center rounded-full bg-paper-2", state === "waiting" && "text-brand")}>
               {state === "waiting" && <span className="absolute inset-0 animate-ping rounded-full bg-brand/20" />}
               <Nfc className="relative size-12" />
             </div>
             <p className="mt-4 font-display text-lg font-bold">{state === "waiting" ? "Acercá la plaquita a la parte de atrás del celular" : "Listo para grabar"}</p>
-            <p className="mt-1 text-sm text-ink-3">Se va a grabar: <span className="font-mono">{url}</span></p>
+            <p className="mt-1 break-all text-sm text-ink-3">Se graba: <span className="font-mono">{url}</span></p>
             {state === "error" && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-danger">{msg || "No se pudo grabar. Probá de nuevo."}</p>}
-            {state !== "waiting" ? (
-              <Button className="mt-5" size="lg" icon={<Nfc className="size-5" />} onClick={() => setState("waiting")}>Empezar a grabar</Button>
-            ) : (
-              <Button className="mt-5" variant="secondary" onClick={() => setState("idle")}>Cancelar</Button>
+
+            {state !== "waiting" && (
+              <label className="mx-auto mt-4 flex max-w-sm cursor-pointer items-start gap-2.5 rounded-xl border border-line p-3 text-left text-sm">
+                <input type="checkbox" checked={lock} onChange={(e) => setLock(e.target.checked)} className="mt-0.5 size-4 accent-[var(--color-danger)]" />
+                <span>
+                  <span className="flex items-center gap-1.5 font-semibold"><Lock className="size-3.5" /> Bloquear contra escritura</span>
+                  <span className="text-ink-3">Nadie más podrá regrabarla, <b>ni vos</b>. Es permanente. El destino igual se cambia desde el panel.</span>
+                </span>
+              </label>
             )}
+
+            <div className="mt-5 flex justify-center gap-2">
+              {state !== "waiting" ? (
+                <Button size="lg" icon={<Nfc className="size-5" />} onClick={() => setState("waiting")}>{serial && done.size ? "Seguir grabando" : "Empezar a grabar"}</Button>
+              ) : (
+                <Button variant="secondary" onClick={() => setState("idle")}>Pausar</Button>
+              )}
+              {serial && <Button variant="ghost" icon={<SkipForward className="size-4" />} onClick={skip}>Saltar</Button>}
+            </div>
             {/localhost|127\.0\.0\.1|192\.168\./.test(url) && <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">Estás en modo local: grabá las plaquitas definitivas desde la web publicada para que tengan la dirección correcta.</p>}
           </div>
         )}

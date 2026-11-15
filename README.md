@@ -51,7 +51,10 @@ No hace falta `.env.local`: la dirección y la clave pública de Supabase ya vie
 
 - Cada plaquita tiene un código de 6 caracteres. Su dirección es `https://<dominio>/q/CODIGO`: eso se graba en el chip NFC y se imprime como QR.
 - Destinos: página del negocio, menú, WiFi, tarjeta de fidelidad, WhatsApp, Instagram, reseña de Google, ubicación o cualquier enlace. Se cambia sin reimprimir ni volver a grabar.
-- **Grabar NFC** funciona desde **Chrome en Android** (Web NFC). En iPhone o compu, el panel ofrece copiar el enlace para grabarlo con la app NFC Tools.
+- **Lotes en blanco**: “Crear lote” genera N plaquitas *sin destino* (cuentan escaneos pero todavía no redirigen). Se imprimen y graban ahora y se les asigna el destino al venderlas.
+- **Diseño e impresión**: seleccioná plaquitas → “Diseñar e imprimir”. Plantillas (Reseñas, Instagram, WhatsApp, WiFi, Menú, Fidelidad, Negocio, Libre) con color, título, imagen central y logo propios, bloque NFC “acercá tu celular” y QR “escaneá con la cámara”. Exporta PNG o PDF A4 (6, 7, 8 o 10 cm) con líneas de corte; cada plaquita con su QR.
+- **Grabar NFC sin apps**: desde **Chrome en Android** (Web NFC) el panel graba una o varias plaquitas en serie (acercás una, se graba y pasa a la siguiente), con opción de bloquearlas contra escritura. En iPhone o compu ofrece copiar el enlace para NFC Tools.
+- **Asignar destino escaneando**: si un admin o vendedor con sesión iniciada escanea una plaquita sin destino, se abre su configuración.
 - Grabá las plaquitas definitivas desde la web publicada (no desde `localhost`), así quedan con el dominio correcto.
 
 ## Fidelización

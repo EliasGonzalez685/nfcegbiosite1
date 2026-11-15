@@ -11,16 +11,18 @@ import { PageLoader } from "@/components/ui";
 
 function Plaques() {
   const { me } = useSession();
-  const startCreating = useSearchParams().get("nueva") === "1";
+  const params = useSearchParams();
+  const startCreating = params.get("nueva") === "1";
+  const configCode = params.get("config");
   const { data: businesses, loading } = useAsync(() => listManagedBusinesses(me!.id, me!.role), [me?.id]);
 
   return (
     <Page wide>
       <PageHead
         title="Plaquitas NFC y QR"
-        description="Cada plaquita tiene un código fijo (grabado en el chip NFC y/o impreso como QR). Lo que abre lo cambiás cuando quieras, sin reimprimir ni volver a grabar."
+        description="Cada plaquita tiene un código fijo (grabado en el chip NFC y/o impreso como QR). Lo que abre lo cambiás cuando quieras, sin reimprimir ni volver a grabar. Creá lotes en blanco, imprimí el diseño y grabá el NFC desde acá."
       />
-      {loading && !businesses ? <PageLoader /> : <PlaqueManager businesses={businesses ?? []} canEdit canDelete={me?.role === "admin"} startCreating={startCreating} />}
+      {loading && !businesses ? <PageLoader /> : <PlaqueManager businesses={businesses ?? []} canEdit canDelete={me?.role === "admin"} startCreating={startCreating} configCode={configCode} />}
     </Page>
   );
 }

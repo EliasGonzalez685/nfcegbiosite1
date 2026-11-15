@@ -100,7 +100,7 @@ export interface BusinessRow {
 }
 
 export type DeviceKind = "nfc_qr" | "qr" | "nfc";
-export type PlaqueTarget = "business" | "menu" | "wifi" | "loyalty" | "url";
+export type PlaqueTarget = "none" | "business" | "menu" | "wifi" | "loyalty" | "url";
 
 /** Plaquita NFC / QR con destino editable */
 export interface Plaque {
